@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "school_id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "class_no": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "integer"
+        },
+        "created_by": {
+          "type": "integer"
+        },
+        "created_at": {
+          "type": "integer"
+        },
+        "updated_by": {
+          "type": "integer"
+        },
+        "updated_at": {
+          "type": "integer"
+        },
+        "subject_id": {
+          "type": "integer"
+        },
+        "grade_phase_id": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "class_no",
+        "created_at",
+        "created_by",
+        "grade_phase_id",
+        "id",
+        "name",
+        "school_id",
+        "status",
+        "subject_id",
+        "updated_at",
+        "updated_by"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "data",
+    "message"
+  ]
+}

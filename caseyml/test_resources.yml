@@ -1,0 +1,2138 @@
+author: fengzixuan
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 1-精品资源模块
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6-dev.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+#学科的pid
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+gzwl_pid_num: &gzwl_pid GZWLcJQXfD9W
+czhx_pid_num: &czhx_pid CZHXNDZHTa75
+gzhx_pid_num: &gzhx_pid GZHXXV8IClkO
+czsw_pid_num: &czsw_pid JuFhE84jRhEh
+gzsw_pid_num: &gzsw_pid EjEViMk33jNr
+xk_pid_num: &xk_pid iwjngieNGEAiEI2
+#登录用户
+login_name_7004: &login_7004 18722547004
+login_name_2701: &login_2701 13902122701
+login_password: &login_password 123456
+
+login:
+  run:
+  story: 01-【业务流程前置条件】登录
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件-返回token】用户登录
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/username
+  request_param: &login_params
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &LoginParams
+      username: *login_7004
+      password: *login_password
+      platform: web
+      clientinfo: ~
+      pid: *czwl_pid
+#  请求参数
+  request_params:
+    - <<: *login_params
+#  响应结果的处理
+  response:
+#    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: token_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token_7004_resp ]
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.username::0$$$$" in (jsonpath(req_json,"$.phone")))'
+  jschema_validate:
+    - &fzx_resources_login_jschema
+      validate: true
+      filelocation: local
+      filepath: fzx_checklogin_jschema.json
+      first: false
+      update: false
+
+checklogin:
+  run:
+  story: 02-【业务流程前置条件】校验登录
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件-使用token请求】校验用户登录状态
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/check
+  request_param: &checklogin_params
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+      Authorization: Bearer $token_7004_req
+    params: &CheckloginParams
+      pid: *czwl_pid
+#  请求参数
+  request_params:
+    - <<: *checklogin_params
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - &token_7004_req
+      online: false
+      type: response
+      case_id: token_7004.json
+      depend_key: [ auth_token_7004_resp ]
+      replace_key: [ token_7004_req ]
+#  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$json_file::token_7004.json::auth_token_7004_resp$$$$" in (jsonpath(req_json,"$.auth_token")))'
+  jschema_validate:
+    - *fzx_resources_login_jschema
+
+tree:
+  run:
+  story: 03-章节-树
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 验证能正确获取物理学科的章节-树数据(返回200,校验学段正常)
+    - 验证能正确获取化学学科的章节-树数据(返回200,校验学段正常)
+    - 验证能正确获取生物学科的章节-树数据(返回200,校验学段正常)
+    - 验证参数值为空时，会报错(返回422,message提示:"学科ID不能为空")
+    - 验证无参时，会报错(返回422,message提示:"学科ID不能为空")
+    - 验证参数值错误时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证参数的数据类型错误时，会报错(返回422,message提示:"学科ID是无效的")
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/chapter/tree
+  request_param: &tree_params
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &TreeParams
+      subjectId: 1
+#  请求参数
+  request_params:
+    - <<: *tree_params
+    - <<: *tree_params
+      params:
+        <<: *TreeParams
+        subjectId: 2
+    - <<: *tree_params
+      params:
+        subjectId: 3
+    - <<: *tree_params
+      params:
+        subjectId: ~
+    - <<: *tree_params
+      params:
+    - <<: *tree_params
+      params:
+        <<: *TreeParams
+        subjectId: 0
+    - <<: *tree_params
+      params:
+        <<: *TreeParams
+        subjectId: "错误的数据类型"
+
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume(["初中","高中"] == jsonpath(req_json,"$.data[:].name"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume(["初中","高中"] == jsonpath(req_json,"$.data[:].name"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume(["初中","高中"] == jsonpath(req_json,"$.data[:].name"))'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json,"$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json,"$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json,"$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json,"$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json,"$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json,"$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json,"$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json,"$.data[:].message")[0])'
+  jschema_validate:
+    - &tree_success_jschema
+      validate: true
+      filelocation: local
+      filepath: tree_success_jschema.json
+      first: false
+      update: false
+    - *tree_success_jschema
+    - *tree_success_jschema
+    - &failure_jschema
+      validate: true
+      filelocation: local
+      filepath: failure_jschema.json
+      first: false
+      update: false
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+
+knowledge:
+  run:
+  story: 04-知识点-树
+  module_flag: *v6console_moduleflag
+  description:
+    - 验证物理学科小学学段的数据为空(返回200,data内容为空)
+    - 验证物理学科能正常获取初中学段数据(返回200,校验学科、学段正常)
+    - 验证物理学科能正常获取高中学段数据(返回200,校验学科、学段正常)
+    - 验证化学学科小学学段的数据为空(返回200,data内容为空)
+    - 验证化学学科能正常获取初中学段数据(返回200,校验学科、学段正常)
+    - 验证化学学科能正常获取高中学段数据(返回200,校验学科、学段正常)
+    - 验证生物学科小学学段的数据为空(返回200,data内容为空)
+    - 验证生物学科能正常获取初中学段数据(返回200,校验学科、学段正常)
+    - 验证生物学科能正常获取高中学段数据(返回200,校验学科、学段正常)
+    - 验证学科错误学段正确时,会报错(返回422,message提示:"学科ID是无效的")
+    - 验证学科正确学段错误时,无数据(返回200,data内容为空,没有对学段正确性的校验???)
+    - 验证学科,学段均错误时,会报错(返回422,message提示:"学科ID是无效的",没有对学段正确性的校验???)
+    - 验证无学科字段,学段正确时,会报错(返回422,message提示:"学科ID不能为空")
+    - 验证无学段字段,学科正确时,会报错(返回422,message提示:"学段不能为空")
+    - 验证无参数时,会报错(返回422,message提示:"学科ID不能为空",没有对学段为空的校验???)
+    - 验证学科数据类型错误时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证学段数据类型错误时，会报错(返回422,message提示:"学段必须为int")
+    - 验证学科和学段数据类型均错误时，会报错(返回422,message提示:"学科ID是无效的","学段必须为int")
+  params_type: params
+  host: *v6console_test
+  path: /v1/knowledge-points/index
+  request_param: &knowledge_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &KnowledgeParams
+      subjectId: 1
+      gradePhase: 1
+  request_params:
+    - <<: *knowledge_params
+    - <<: *knowledge_params
+      params:
+        <<: *KnowledgeParams
+        gradePhase: 2
+    - <<: *knowledge_params
+      params:
+        <<: *KnowledgeParams
+        gradePhase: 3
+    - <<: *knowledge_params
+      params:
+        subjectId: 2
+        gradePhase: 1
+    - <<: *knowledge_params
+      params:
+        subjectId: 2
+        gradePhase: 2
+    - <<: *knowledge_params
+      params:
+        subjectId: 2
+        gradePhase: 3
+    - <<: *knowledge_params
+      params:
+        subjectId: 3
+        gradePhase: 1
+    - <<: *knowledge_params
+      params:
+        subjectId: 3
+        gradePhase: 2
+    - <<: *knowledge_params
+      params:
+        subjectId: 3
+        gradePhase: 3
+    - <<: *knowledge_params
+      params:
+        subjectId: 0
+        gradePhase: 3
+    - <<: *knowledge_params
+      params:
+        subjectId: 2
+        gradePhase: 0
+    - <<: *knowledge_params
+      params:
+        subjectId: 0
+        gradePhase: 0
+    - <<: *knowledge_params
+      params:
+        gradePhase: 2
+    - <<: *knowledge_params
+      params:
+        subjectId: 2
+    - <<: *knowledge_params
+      params: ~
+    - <<: *knowledge_params
+      params:
+        subjectId: "学科id"
+        gradePhase: 2
+    - <<: *knowledge_params
+      params:
+        subjectId: 2
+        gradePhase: "学段id"
+    - <<: *knowledge_params
+      params:
+        subjectId: "学科id"
+        gradePhase: "学段id"
+  response: ~
+  depends_on: ~
+  assert:
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subject_id"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].grade_phase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subject_id"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].grade_phase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subject_id"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].grade_phase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subject_id"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].grade_phase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subject_id"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].grade_phase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subject_id"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].grade_phase"))'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+  jschema_validate:
+    - &null_jschema
+      validate: true
+      filelocation: local
+      filepath: null_jschema.json
+      first: false
+      update: false
+    - &knowledge_success_jschema
+      validate: true
+      filelocation: local
+      filepath: knowledge_success_jschema.json
+      first: false
+      update: false
+    - *knowledge_success_jschema
+    - *null_jschema
+    - *knowledge_success_jschema
+    - *knowledge_success_jschema
+    - *null_jschema
+    - *knowledge_success_jschema
+    - *knowledge_success_jschema
+    - *failure_jschema
+    - *null_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+
+list:
+  run:
+  story: 05-列表
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 验证物理学科小学学段的列表数据为空(返回200,data内容为空)
+    - 【业务流程1-返回初中物理的资源id】验证物理学科能正常获取初中学段的列表数据(返回200,校验学科、学段正常)
+    - 【业务流程2-返回高中物理的资源id】验证物理学科能正常获取高中学段的列表数据(返回200,校验学科、学段正常)
+    - 验证化学学科小学学段的列表数据为空(返回200,data内容为空)
+    - 【业务流程3-返回初中化学的资源id】验证化学学科能正常获取初中学段的列表数据(返回200,校验学科、学段正常)
+    - 【业务流程4-返回高中化学的资源id】验证化学学科能正常获取高中学段的列表数据(返回200,校验学科、学段正常)
+    - 验证生物学科小学学段的列表数据为空(返回200,data内容为空)
+    - 【业务流程5-返回初中生物的资源id】验证生物学科能正常获取初中学段的列表数据(返回200,校验学科、学段正常)
+    - 【业务流程6-返回高中生物的资源id】验证生物学科能正常获取高中学段的列表数据(返回200,校验学科、学段正常)
+    - 验证学科正确学段错误时，会报错(返回422,message提示:"学段是无效的")
+    - 验证学段正确学科错误时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证学科和学段均错误时，会报错(返回422,message提示:"学科ID是无效的","学段是无效的")
+    - 验证学科为空学段正确时，会报错(返回422,message提示:"学科ID不能为空")
+    - 验证学段为空学科正确时，可以获取到对应学科初高中的列表数据(返回200,没有对学段为空的校验???)
+    - 验证学段和学科均为空时，会报错(返回422,message提示:"学科ID不能为空",没有对学段为空的校验???)
+    - 验证学段正确，学科的数据类型错误时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证学科正确，学段的数据类型错误时，会报错(返回422,message提示:"学段必须是int")
+    - 验证学段和学科的数据类型错误时，会报错(返回422,message提示:"学段必须是int","学科ID是无效的")
+    - 【业务流程1-返回所有初中物理的资源数量】验证版本号为空时，能正常获取初中物理的全部实验(返回200,校验学科、学段正常)
+    - 【业务流程1-1-使用所有初中物理的资源数量断言】验证请求具体版本号，能正常获取对应版本号的初中物理的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程1-2-使用所有初中物理的资源数量断言】验证请求beta前缀的版本号，能正常获取对应版本号的初中物理的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程1-3-使用所有初中物理的资源数量断言】验证请求beta后缀的版本号，能正常获取对应版本号的初中物理的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程2-返回所有高中物理的资源数量】验证版本号为空时，能正常获取高中物理的全部实验(返回200,校验学科、学段正常)
+    - 【业务流程2-1-使用所有高中物理的资源数量断言】验证请求具体版本号，能正常获取对应版本号的高中物理的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程2-2-使用所有高中物理的资源数量断言】验证请求beta前缀的版本号，能正常获取对应版本号的高中物理的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程2-3-使用所有高中物理的资源数量断言】验证请求beta后缀的版本号，能正常获取对应版本号的高中物理的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程3-返回所有初中化学的资源数量】验证版本号为空时，能正常获取初中化学的全部实验(返回200,校验学科、学段正常)
+    - 【业务流程3-1-使用所有初中化学的资源数量断言】验证请求具体版本号，能正常获取对应版本号的初中化学的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程3-2-使用所有初中化学的资源数量断言】验证请求beta前缀的版本号，能正常获取对应版本号的初中化学的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程3-3-使用所有初中化学的资源数量断言】验证请求beta后缀的版本号，能正常获取对应版本号的初中化学的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程4-返回所有高中化学的资源数量】验证版本号为空时，能正常获取高中化学的全部实验(返回200,校验学科、学段正常)
+    - 【业务流程4-1-使用所有高中化学的资源数量断言】验证请求具体版本号，能正常获取对应版本号的高中化学的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程4-1-使用所有高中化学的资源数量断言】验证请求beta前缀的版本号，能正常获取对应版本号的高中化学的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程4-1-使用所有高中化学的资源数量断言】验证请求beta后缀的版本号，能正常获取对应版本号的高中化学的全部实验(返回200,校验学科、学段正常,校验资源数量少于所有资源)
+    - 【业务流程5-返回所有初中生物的资源数量】验证版本号为空时，能正常获取初中生物的全部实验(返回200,校验学科、学段正常)
+    - 【业务流程5-1-使用所有初中物理的资源数量断言】验证请求具体版本号，能正常获取对应版本号的初中生物的全部实验(返回200,校验学科、学段正常,校验资源数量少于等于所有资源)
+    - 【业务流程5-2-使用所有初中物理的资源数量断言】验证请求beta前缀的版本号，能正常获取对应版本号的初中生物的全部实验(返回200,校验学科、学段正常,校验资源数量少于等于所有资源)
+    - 【业务流程5-3-使用所有初中物理的资源数量断言】验证请求beta后缀的版本号，能正常获取对应版本号的初中生物的全部实验(返回200,校验学科、学段正常,校验资源数量少于等于所有资源)
+    - 【业务流程6-返回所有高中生物的资源数量】验证版本号为空时，能正常获取高中生物的全部实验(返回200,校验学科、学段正常)
+    - 【业务流程6-1-使用所有高中生物的资源数量断言】验证请求具体版本号，能正常获取对应版本号的高中生物的全部实验(返回200,校验学科、学段正常,校验资源数量少于等于所有资源)
+    - 【业务流程6-2-使用所有高中生物的资源数量断言】验证请求beta前缀的版本号，能正常获取对应版本号的高中生物的全部实验(返回200,校验学科、学段正常,校验资源数量少于等于所有资源)
+    - 【业务流程6-3-使用所有高中生物的资源数量断言】验证请求beta后缀的版本号，能正常获取对应版本号的高中生物的全部实验(返回200,校验学科、学段正常,校验资源数量少于等于所有资源)
+    - 验证版本号错误时,能正常获取对应学科的全部实验(返回200,校验学科、学段正常,资源数量与所有资源一致)
+    - 验证版本号数据类型错误时,能正常获取对应学科的全部实验(返回200,校验学科、学段正常,资源数量与所有资源一致)
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/index
+  request_param: &list_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &ListParams
+      subjectId: 1
+      gradePhase: 1
+      per-page: 50
+#      actionType: 100
+      dataVersion: ~
+      versionId: 1
+#  请求参数
+  request_params:
+    - <<: *list_params
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        gradePhase: 2
+        title: "电阻"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        gradePhase: 3
+        title: "电流"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 2
+        gradePhase: 1
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 2
+        gradePhase: 2
+        title: "反应"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 2
+        gradePhase: 3
+        title: "实验"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 3
+        gradePhase: 1
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 3
+        gradePhase: 2
+        title: "光合作用"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 3
+        gradePhase: 3
+        title: "影响"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 1
+        gradePhase: 0
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 0
+        gradePhase: 2
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 0
+        gradePhase: 0
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: ~
+        gradePhase: 2
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: 1
+        gradePhase: ~
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: ~
+        gradePhase: ~
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: "学科id"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        gradePhase: "学段id"
+    - <<: *list_params
+      params:
+        <<: *ListParams
+        subjectId: "学科id"
+        gradePhase: "学段id"
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 2
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 2
+        dataVersion: v5.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 2
+        dataVersion: beta_7004-v5.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 2
+        dataVersion: v5.0.0-beta_7004
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 3
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 3
+        dataVersion: v5.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 3
+        dataVersion: beta_7004-v5.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 3
+        dataVersion: v5.0.0-beta_7004
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 2
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 2
+        dataVersion: v2.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 2
+        dataVersion: beta_7004-v2.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 2
+        dataVersion: v2.0.0-beta_7004
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 3
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 3
+        dataVersion: v2.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 3
+        dataVersion: beta_7004-v2.0.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 2
+        gradePhase: 3
+        dataVersion: v2.0.0-beta_7004
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 2
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 2
+        dataVersion: v1.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 2
+        dataVersion: beta_7004-v1.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 2
+        dataVersion: v1.0-beta_7004
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 3
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 3
+        dataVersion: v1.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 3
+        dataVersion: beta_7004-v1.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 3
+        gradePhase: 3
+        dataVersion: v1.0-beta_7004
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 2
+        dataVersion: v2.0-beta_7004.0
+    - <<: *list_params
+      params:
+        per-page: 50
+        page: 1
+        subjectId: 1
+        gradePhase: 2
+        dataVersion: "错误的版本数据类型"
+  #  响应结果的处理
+  response:
+    - ~
+    - filepath: czwl_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '伏安法测电阻')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_resource_id_7004_resp ]
+    - filepath: gzwl_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '电流的磁效应')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzwl_resource_id_7004_resp ]
+    - ~
+    - filepath: czhx_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '生石灰与水反应放出热量')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czhx_resource_id_7004_resp ]
+    - filepath: gzhx_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: ["$.data[?(@.title == '喷泉实验')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_resource_id_7004_resp ]
+    - ~
+    - filepath: czsw_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '光合作用放氧实验')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_resource_id_7004_resp ]
+    - filepath: gzsw_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '探究二氧化碳浓度对光合作用的影响')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_resource_id_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - filepath: czwl_resource_num_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$._meta.totalCount" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_resource_num_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - filepath: gzwl_resource_num_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$._meta.totalCount" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzwl_resource_num_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - filepath: czhx_resource_num_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$._meta.totalCount" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czhx_resource_num_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - filepath: gzhx_resource_num_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$._meta.totalCount" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_resource_num_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - filepath: czsw_resource_num_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$._meta.totalCount" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_resource_num_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - filepath: gzsw_resource_num_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$._meta.totalCount" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_resource_num_7004_resp ]
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_invalid$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(200==req.status_code),
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume(2 or 3 in jsonpath(req_json,"$.data[:].gradePhase"))'   #空学段  正确学科 返回中初高中数据均存在
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czwl_resource_num_7004::czwl_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czwl_resource_num_7004::czwl_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czwl_resource_num_7004::czwl_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzwl_resource_num_7004::gzwl_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzwl_resource_num_7004::gzwl_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzwl_resource_num_7004::gzwl_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czhx_resource_num_7004::czhx_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czhx_resource_num_7004::czhx_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czhx_resource_num_7004::czhx_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzhx_resource_num_7004::gzhx_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzhx_resource_num_7004::gzhx_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzhx_resource_num_7004::gzhx_resource_num_7004_resp$$$$ > jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czsw_resource_num_7004::czsw_resource_num_7004_resp$$$$ >= jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czsw_resource_num_7004::czsw_resource_num_7004_resp$$$$ >= jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czsw_resource_num_7004::czsw_resource_num_7004_resp$$$$ >= jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzsw_resource_num_7004::gzsw_resource_num_7004_resp$$$$ >= jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzsw_resource_num_7004::gzsw_resource_num_7004_resp$$$$ >= jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::gzsw_resource_num_7004::gzsw_resource_num_7004_resp$$$$ >= jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czwl_resource_num_7004::czwl_resource_num_7004_resp$$$$ == jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$json_file::czwl_resource_num_7004::czwl_resource_num_7004_resp$$$$ == jsonpath(req_json,"$._meta.totalCount")[0])'
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+  jschema_validate:
+    - &list_null_jschema
+      validate: true
+      filelocation: local
+      filepath: list_null_jschema.json
+      first: false
+      update: false
+    - &list_success_jschema
+      validate: true
+      filelocation: local
+      filepath: list_success_jschema.json
+      first: false
+      update: false
+    - *list_success_jschema
+    - *list_null_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_null_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *list_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+    - *list_success_jschema
+
+category:
+  run:
+  story: 06-类别
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 验证物理学科小学学段的类别数据为空(返回200,data内容为空)
+    - 验证物理学科能正常获取初中学段的类别数据(返回200,校验学科、学段正常)
+    - 验证物理学科能正常获取高中学段的类别数据(返回200,校验学科、学段正常)
+    - 验证化学学科小学学段的类别数据为空(返回200,data内容为空)
+    - 验证化学学科能正常获取初中学段的类别数据(返回200,校验学科、学段正常)
+    - 验证化学学科能正常获取高中学段的类别数据(返回200,校验学科、学段正常)
+    - 验证生物学科小学学段的类别数据为空(返回200,data内容为空)
+    - 验证生物学科初中学段的类别数据为空(返回200,data内容为空,初中生物的资源类别为空???)
+    - 验证生物学科高中学段的类别数据为空(返回200,data内容为空,高中生物的资源类别为空???)
+    - 验证学科正确学段错误时，会报错(返回422,message提示:"学段是无效的")
+    - 验证学段正确学科错误时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证学科和学段均错误时，会报错(返回422,message提示:"学科ID是无效的","学段是无效的")
+    - 验证学科为空学段正确时，会报错(返回422,message提示:"学科ID不能为空")
+    - 验证学段为空学科正确时，可以获取到对应学科初高中的类别数据(返回200,没有对学科为空的校验???)
+    - 验证学段和学科均为空时，会报错(返回422,message提示:"学科ID不能为空",没有对学科为空的校验???)
+    - 验证学段正确，学科的数据类型错误时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证学科正确，学段的数据类型错误时，会报错(返回422,message提示:"学段必须是int")
+    - 验证学段和学科的数据类型错误时，会报错(返回422,message提示:"学段必须是int","学科ID是无效的")
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/category
+  request_param: &category_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &CategoryParams
+      subjectId: 1
+      gradePhase: 1
+#  请求参数
+  request_params:
+    - <<: *category_params
+    - <<: *category_params
+      params:
+        <<: *CategoryParams
+        gradePhase: 2
+    - <<: *category_params
+      params:
+        <<: *CategoryParams
+        gradePhase: 3
+    - <<: *category_params
+      params:
+        subjectId: 2
+        gradePhase: 1
+    - <<: *category_params
+      params:
+        subjectId: 2
+        gradePhase: 2
+    - <<: *category_params
+      params:
+        subjectId: 2
+        gradePhase: 3
+    - <<: *category_params
+      params:
+        subjectId: 3
+        gradePhase: 1
+    - <<: *category_params
+      params:
+        subjectId: 3
+        gradePhase: 2
+    - <<: *category_params
+      params:
+        subjectId: 3
+        gradePhase: 3
+    - <<: *category_params
+      params:
+        subjectId: 1
+        gradePhase: 0
+    - <<: *category_params
+      params:
+        subjectId: 0
+        gradePhase: 2
+    - <<: *category_params
+      params:
+        subjectId: 0
+        gradePhase: 0
+    - <<: *category_params
+      params:
+        subjectId: ~
+        gradePhase: 2
+    - <<: *category_params
+      params:
+        subjectId: 1
+        gradePhase: ~
+    - <<: *category_params
+      params:
+        subjectId: ~
+        gradePhase: ~
+    - <<: *category_params
+      params:
+        <<: *ListParams
+        subjectId: "学科id"
+    - <<: *category_params
+      params:
+        <<: *ListParams
+        gradePhase: "学段id"
+    - <<: *category_params
+      params:
+        subjectId: "学科id"
+        gradePhase: "学段id"
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+#    一个case里的多重断言
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+        - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+        - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+        - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+        - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'  #初中生物类别返回为空
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'  #高中生物类别返回为空
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_invalid$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - - pytest.assume(200==req.status_code)
+        - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+        - 'pytest.assume(2 or 3 in jsonpath(req_json,"$.data[:].gradePhase"))'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - - pytest.assume(422==req.status_code)
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+        - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+  jschema_validate:
+    - *null_jschema
+    - &category_success_jschema
+      validate: true
+      filelocation: local
+      filepath: category_success_jschema.json
+      first: false
+      update: false
+    - *category_success_jschema
+    - *null_jschema
+    - *category_success_jschema
+    - *category_success_jschema
+    - *null_jschema
+    - *null_jschema
+    - *null_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *category_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+
+
+detail:
+  run:
+  story: 07-资源详情
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-使用初中物理的资源id请求】验证可以正常获取初中物理的资源详情(返回200,校验资源ID、资源名正常)
+    - 【业务流程2-使用高中物理的资源id请求】验证可以正常获取高中物理的资源详情(返回200,校验资源ID、资源名正常)
+    - 【业务流程3-使用初中化学的资源id请求】验证可以正常获取初中化学的资源详情(返回200,校验资源ID、资源名正常)
+    - 【业务流程4-使用高中化学的资源id请求】验证可以正常获取高中化学的资源详情(返回200,校验资源ID、资源名正常)
+    - 【业务流程5-使用初中生物的资源id请求】验证可以正常获取初中生物的资源详情(返回200,校验资源ID、资源名正常)
+    - 【业务流程6-使用高中生物的资源id请求】验证可以正常获取高中生物的资源详情(返回200,校验资源ID、资源名正常)
+    - 验证资源id的值不正确时，无法获取资源详情(返回200,data为空)
+    - 验证资源id为空时，无法获取资源详情(返回422,message提示:"精品资源ID不能为空")
+    - 验证资源id的数据类型不正确时，无法获取资源详情(返回422,message提示:"精品资源ID必须为int")
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/info
+  request_param: &detail_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &DetailParams
+      id: $czwl_resource_id_req
+      subjectId: 1
+#  请求参数
+  request_params:
+    - <<: *detail_params
+    - <<: *detail_params
+      params:
+        <<: *DetailParams
+        id: $gzwl_resource_id_req
+    - <<: *detail_params
+      params:
+        id: $czhx_resource_id_req
+        subjectId: 2
+    - <<: *detail_params
+      params:
+        id: $gzhx_resource_id_req
+        subjectId: 2
+    - <<: *detail_params
+      params:
+        id: $czsw_resource_id_req
+        subjectId: 3
+    - <<: *detail_params
+      params:
+        id: $gzsw_resource_id_req
+        subjectId: 3
+    - <<: *detail_params
+      params:
+        <<: *DetailParams
+        id: 0
+    - <<: *detail_params
+      params:
+        <<: *DetailParams
+        id: ~
+    - <<: *detail_params
+      params:
+        <<: *DetailParams
+        id: "资源id"
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - &czwl_resource_id_req
+      online: false
+      type: response
+      case_id: czwl_resource_id_7004.json
+      depend_key: [ czwl_resource_id_7004_resp ]
+      replace_key: [ czwl_resource_id_req ]
+    - &gzwl_resource_id_req
+      online: false
+      type: response
+      case_id: gzwl_resource_id_7004.json
+      depend_key: [ gzwl_resource_id_7004_resp ]
+      replace_key: [ gzwl_resource_id_req ]
+    - &czhx_resource_id_req
+      online: false
+      type: response
+      case_id: czhx_resource_id_7004.json
+      depend_key: [ czhx_resource_id_7004_resp ]
+      replace_key: [ czhx_resource_id_req ]
+    - &gzhx_resource_id_req
+      online: false
+      type: response
+      case_id: gzhx_resource_id_7004.json
+      depend_key: [ gzhx_resource_id_7004_resp ]
+      replace_key: [ gzhx_resource_id_req ]
+    - &czsw_resource_id_req
+      online: false
+      type: response
+      case_id: czsw_resource_id_7004.json
+      depend_key: [ czsw_resource_id_7004_resp ]
+      replace_key: [ czsw_resource_id_req ]
+    - &gzsw_resource_id_req
+      online: false
+      type: response
+      case_id: gzsw_resource_id_7004.json
+      depend_key: [ gzsw_resource_id_7004_resp ]
+      replace_key: [ gzsw_resource_id_req ]
+    - ~
+    - ~
+    - ~
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume( $$$$json_file::czwl_resource_id_7004.json::czwl_resource_id_7004_resp$$$$ ==  jsonpath(req_json,"$.data.id")[0])'
+      - 'pytest.assume( "伏安法测电阻" ==  jsonpath(req_json,"$.data.title")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume( $$$$json_file::gzwl_resource_id_7004.json::gzwl_resource_id_7004_resp$$$$ ==  jsonpath(req_json,"$.data.id")[0])'
+      - 'pytest.assume( "电流的磁效应" ==  jsonpath(req_json,"$.data.title")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume( $$$$json_file::czhx_resource_id_7004.json::czhx_resource_id_7004_resp$$$$ ==  jsonpath(req_json,"$.data.id")[0])'
+      - 'pytest.assume( "生石灰与水的反应" ==  jsonpath(req_json,"$.data.title")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume( $$$$json_file::gzhx_resource_id_7004.json::gzhx_resource_id_7004_resp$$$$ ==  jsonpath(req_json,"$.data.id")[0])'
+      - 'pytest.assume( "喷泉实验" ==  jsonpath(req_json,"$.data.title")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume( $$$$json_file::czsw_resource_id_7004.json::czsw_resource_id_7004_resp$$$$ ==  jsonpath(req_json,"$.data.id")[0])'
+      - 'pytest.assume( "光合作用放氧实验" ==  jsonpath(req_json,"$.data.title")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume( $$$$json_file::gzsw_resource_id_7004.json::gzsw_resource_id_7004_resp$$$$ ==  jsonpath(req_json,"$.data.id")[0])'
+      - 'pytest.assume( "探究二氧化碳浓度对光合作用的影响" ==  jsonpath(req_json,"$.data.title")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume(None == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::resource_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::resource_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+  jschema_validate:
+    - &detail_success_jschema
+      validate: true
+      filelocation: local
+      filepath: detail_success_jschema.json
+      first: false
+      update: false
+    - *detail_success_jschema
+    - *detail_success_jschema
+    - *detail_success_jschema
+    - *detail_success_jschema
+    - *detail_success_jschema
+    - *null_jschema
+    - *failure_jschema
+    - *failure_jschema
+
+
+recommend:
+  run:
+  story: 08-推荐
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 验证物理学科小学学段的推荐数据为空(返回200,data内容为空)
+    - 【业务流程1-使用初中物理的资源id请求】验证物理学科能正常获取初中学段的推荐数据(返回200,校验学科、学段正常)
+    - 【业务流程2-使用高中物理的资源id请求】验证物理学科能正常获取高中学段的推荐数据(返回200,校验学科、学段正常)
+    - 验证化学学科小学学段的推荐数据为空(返回200,data内容为空)
+    - 【业务流程3-使用初中化学的资源id请求】验证化学学科能正常获取初中学段的推荐数据(返回200,校验学科、学段正常)
+    - 【业务流程4-使用高中化学的资源id请求】验证化学学科能正常获取高中学段的推荐数据(返回200,校验学科、学段正常)
+    - 验证生物学科小学学段的推荐数据为空(返回200,data内容为空)
+    - 【业务流程5-使用初中生物的资源id请求】验证生物学科能正常获取初中学段的推荐数据(返回200,校验学科、学段正常)
+    - 【业务流程6-使用高中生物的资源id请求】验证生物学科能正常获取高中学段的推荐数据(返回200,校验学科、学段正常)
+    - 验证学段错误，其他参数值正确时，会报错(返回422,message提示:"学段是无效的")
+    - 验证学科错误，其他参数值正确时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证资源id错误，其他参数值正确时，可以获取推荐数据(返回200,资源id为0,可以获取数据???)
+    - 验证学段、学科、资源id均错误时，会报错(返回422,message提示:"学科ID是无效的","学段是无效的",没有对资源id的校验???)
+    - 验证学段为空，其他参数值正确时，会报错(返回422,message提示:"学段不能为空")
+    - 验证学科为空，其他参数值正确时，会报错(返回422,message提示:"学科ID不能为空")
+    - 验证资源id为空，其他参数值正确时，会报错(返回422,message提示:"精品资源ID不能为空")
+    - 验证学段、学科、资源id均为空时，会报错(返回422,message提示:"精品资源ID不能为空","学科ID不能为空","学段不能为空")
+    - 验证学段数据类型错误，其他参数值正确时，会报错(返回422,message提示:"学段必须为int")
+    - 验证学科数据类型错误，其他参数值正确时，会报错(返回422,message提示:"学科ID是无效的")
+    - 验证资源id数据类型错误，其他参数值正确时，会报错(返回422,message提示:"精品资源ID必须为int")
+    - 验证学段、学科、id数据类型均错误时，会报错(返回422,message提示:"精品资源ID必须为int","学段必须为int","精品资源ID必须为int")
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/recommend
+  request_param: &recommend_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &RecommendParams
+      id: $czwl_resource_id_req
+      subjectId: 1
+      gradePhase: 1
+      versionId: ~
+      textbookId: ~
+      chapterId: ~
+      dataVersion: ~
+#  请求参数
+  request_params:
+    - <<: *recommend_params
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: 1
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $gzwl_resource_id_req
+        subjectId: 1
+        gradePhase: 3
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czhx_resource_id_req
+        subjectId: 2
+        gradePhase: 1
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czhx_resource_id_req
+        subjectId: 2
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $gzhx_resource_id_req
+        subjectId: 2
+        gradePhase: 3
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czsw_resource_id_req
+        subjectId: 3
+        gradePhase: 1
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czsw_resource_id_req
+        subjectId: 3
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $gzsw_resource_id_req
+        subjectId: 3
+        gradePhase: 3
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: 1
+        gradePhase: 0
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: 0
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: 0
+        subjectId: 1
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: 0
+        subjectId: 0
+        gradePhase: 0
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: 1
+        gradePhase: ~
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: ~
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: ~
+        subjectId: 1
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: ~
+        subjectId: ~
+        gradePhase: ~
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: 1
+        gradePhase: "学段类型"
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: $czwl_resource_id_req
+        subjectId: "学科类型"
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: "资源id"
+        subjectId: 1
+        gradePhase: 2
+    - <<: *recommend_params
+      params:
+        <<: *RecommendParams
+        id: "资源id"
+        subjectId: "学科类型"
+        gradePhase: "学段类型"
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - *czwl_resource_id_req
+    - *czwl_resource_id_req
+    - *gzwl_resource_id_req
+    - *czhx_resource_id_req
+    - *czhx_resource_id_req
+    - *gzhx_resource_id_req
+    - *czsw_resource_id_req
+    - *czsw_resource_id_req
+    - *gzsw_resource_id_req
+    - *czwl_resource_id_req
+    - *czwl_resource_id_req
+    - ~
+    - ~
+    - *czwl_resource_id_req
+    - *czwl_resource_id_req
+    - ~
+    - ~
+    - *czwl_resource_id_req
+    - *czwl_resource_id_req
+    - ~
+    - ~
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 0 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 0 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 0 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 0 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 0 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 0 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ or 3 in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_invalid$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::resource_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::resource_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_blank$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_blank$$$$" in jsonpath(req_json, "$.data[2].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::resource_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::resource_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::grade_int$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::sub_invalid$$$$" in jsonpath(req_json, "$.data[2].message")[0])'
+    #只有推荐接口中 学段为空时 返回值会有校验
+  jschema_validate:
+    - *null_jschema
+    - &recommend_success_jschema
+      validate: true
+      filelocation: local
+      filepath: recommend_success_jschema.json
+      first: false
+      update: false
+    - *recommend_success_jschema
+    - *null_jschema
+    - *recommend_success_jschema
+    - *recommend_success_jschema
+    - *null_jschema
+    - *recommend_success_jschema
+    - *recommend_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *recommend_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+
+
+operate:
+  run:
+  story: 09-操作[点赞、分享]
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-1-使用token和初中物理资源id请求】验证初中物理学科的点击操作正常(返回200,data内容为空)
+    - 【业务流程1-2-使用token和初中物理资源id请求】验证初中物理学科的播放操作正常(返回200,data内容为空)
+    - 【业务流程1-3-使用token和初中物理资源id请求】验证初中物理学科的分享操作正常(返回200,data内容为空)
+    - 【业务流程1-4-使用token和初中物理资源id请求】验证初中物理学科的点赞操作正常(返回200,data内容为空)
+    - 【业务流程1-5-使用token和初中物理资源id请求】验证初中物理学科的取消点赞操作正常(返回200,data内容为空)
+    - 【业务流程2-1-使用token和高中物理资源id请求】验证高中物理学科的点击操作正常(返回200,data内容为空)
+    - 【业务流程2-2-使用token和高中物理资源id请求】验证高中物理学科的播放操作正常(返回200,data内容为空)
+    - 【业务流程2-3-使用token和高中物理资源id请求】验证高中物理学科的分享操作正常(返回200,data内容为空)
+    - 【业务流程2-4-使用token和高中物理资源id请求】验证高中物理学科的点赞操作正常(返回200,data内容为空)
+    - 【业务流程2-5-使用token和高中物理资源id请求】验证高中物理学科的取消点赞操作正常(返回200,data内容为空)
+    - 【业务流程3-1-使用token和初中化学资源id请求】验证初中化学学科的点击操作正常(返回200,data内容为空)
+    - 【业务流程3-2-使用token和初中化学资源id请求】验证初中化学学科的播放操作正常(返回200,data内容为空)
+    - 【业务流程3-3-使用token和初中化学资源id请求】验证初中化学学科的分享操作正常(返回200,data内容为空)
+    - 【业务流程3-4-使用token和初中化学资源id请求】验证初中化学学科的点赞操作正常(返回200,data内容为空)
+    - 【业务流程3-5-使用token和初中化学资源id请求】验证初中化学学科的取消点赞操作正常(返回200,data内容为空)
+    - 【业务流程4-1-使用token和高中化学资源id请求】验证高中化学学科的点击操作正常(返回200,data内容为空)
+    - 【业务流程4-2-使用token和高中化学资源id请求】验证高中化学学科的播放操作正常(返回200,data内容为空)
+    - 【业务流程4-3-使用token和高中化学资源id请求】验证高中化学学科的分享操作正常(返回200,data内容为空)
+    - 【业务流程4-4-使用token和高中化学资源id请求】验证高中化学学科的点赞操作正常(返回200,data内容为空)
+    - 【业务流程4-5-使用token和高中化学资源id请求】验证高中化学学科的取消点赞操作正常(返回200,data内容为空)
+    - 【业务流程5-1-使用token和初中生物资源id请求】验证初中生物学科的点击操作正常(返回200,data内容为空)
+    - 【业务流程5-2-使用token和初中生物资源id请求】验证初中生物学科的播放操作正常(返回200,data内容为空)
+    - 【业务流程5-3-使用token和初中生物资源id请求】验证初中生物学科的分享操作正常(返回200,data内容为空)
+    - 【业务流程5-4-使用token和初中生物资源id请求】验证初中生物学科的点赞操作正常(返回200,data内容为空)
+    - 【业务流程5-5-使用token和初中生物资源id请求】验证初中生物学科的取消点赞操作正常(返回200,data内容为空)
+    - 【业务流程6-1-使用token和高中生物资源id请求】验证高中生物学科的点击操作正常(返回200,data内容为空)
+    - 【业务流程6-2-使用token和高中生物资源id请求】验证高中生物学科的播放操作正常(返回200,data内容为空)
+    - 【业务流程6-3-使用token和高中生物资源id请求】验证高中生物学科的分享操作正常(返回200,data内容为空)
+    - 【业务流程6-4-使用token和高中生物资源id请求】验证高中生物学科的点赞操作正常(返回200,data内容为空)
+    - 【业务流程6-5-使用token和高中生物资源id请求】验证高中生物学科的取消点赞操作正常(返回200,data内容为空)
+    - 验证操作正确资源错误时，无法正常进行操作(返回200,data内容为空,没有对实验id的校验???)
+    - 验证操作错误资源正确时，无法正常进行操作,会报错(返回422,message提示:"动作是无效的")
+    - 验证操作和资源均错误时，无法正常进行操作,会报错(返回422,message提示:"动作是无效的",没有对实验id的校验???)
+    - 验证操作为空资源正确时，无法正常进行操作,会报错(返回422,message提示:"动作不能为空")
+    - 验证操作正确资源为空时，无法正常进行操作,会报错(返回422,message提示:"实验ID不能为空")
+    - 验证操作和资源均为空时，无法正常进行操作,会报错(返回422,message提示:"实验ID不能为空","动作不能为空")
+    - 验证操作的数据类型错误，资源id数据类型正确时，无法正常进行操作,会报错(返回422,message提示:"动作必须为str")
+    - 验证资源id数据类型错误，操作的数据类型正确时，无法正常进行操作,会报错(返回422,message提示:"实验ID必须为int")
+    - 验证资源id和操作的数据类型均错误时，无法正常进行操作,会报错(返回422,message提示:"动作必须为str","实验ID必须为int")
+    - 验证操作为大写时，无法正常进行操作,会报错(返回422,message提示:"动作是无效的")
+#  设置request_param 下的params 是params 还是data
+  params_type: json
+  host: *v6console_test
+  path: /v1/resource/push-operates
+  request_param: &operate_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Content-Type: application/json
+      Authorization: Bearer $token_7004_req
+    json: &OperateParams
+      action: "hits"
+      id: $czwl_resource_id_req
+      subjectId: 1
+#  请求参数
+  request_params:
+    - <<: *operate_params
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "play"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "share"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "likes"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "unlikes"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzwl_resource_id_req
+        subject_id: 1
+    - <<: *operate_params
+      json:
+        action: "play"
+        id: $gzwl_resource_id_req
+        subject_id: 1
+    - <<: *operate_params
+      json:
+        action: "share"
+        id: $gzwl_resource_id_req
+        subject_id: 1
+    - <<: *operate_params
+      json:
+        action: "likes"
+        id: $gzwl_resource_id_req
+        subject_id: 1
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzwl_resource_id_req
+        subject_id: 1
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "play"
+        id: $czhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "share"
+        id: $czhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "likes"
+        id: $czhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $czhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "play"
+        id: $gzhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "share"
+        id: $gzhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "likes"
+        id: $gzhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzhx_resource_id_req
+        subject_id: 2
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "play"
+        id: $czsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "share"
+        id: $czsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "likes"
+        id: $czsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $czsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "play"
+        id: $gzsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "share"
+        id: $gzsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "likes"
+        id: $gzsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzsw_resource_id_req
+        subject_id: 3
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: 0
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "任意操作"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "任意操作"
+        id: 0
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: ~
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: ~
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: ~
+        id: ~
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: 0
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: "资源id"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: 0
+        id: "资源id"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "HITS"
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+      - *gzwl_resource_id_req
+    - - *token_7004_req
+      - *gzwl_resource_id_req
+    - - *token_7004_req
+      - *gzwl_resource_id_req
+    - - *token_7004_req
+      - *gzwl_resource_id_req
+    - - *token_7004_req
+      - *gzwl_resource_id_req
+    - - *token_7004_req
+      - *czhx_resource_id_req
+    - - *token_7004_req
+      - *czhx_resource_id_req
+    - - *token_7004_req
+      - *czhx_resource_id_req
+    - - *token_7004_req
+      - *czhx_resource_id_req
+    - - *token_7004_req
+      - *czhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *czsw_resource_id_req
+    - - *token_7004_req
+      - *czsw_resource_id_req
+    - - *token_7004_req
+      - *czsw_resource_id_req
+    - - *token_7004_req
+      - *czsw_resource_id_req
+    - - *token_7004_req
+      - *czsw_resource_id_req
+    - - *token_7004_req
+      - *gzsw_resource_id_req
+    - - *token_7004_req
+      - *gzsw_resource_id_req
+    - - *token_7004_req
+      - *gzsw_resource_id_req
+    - - *token_7004_req
+      - *gzsw_resource_id_req
+    - - *token_7004_req
+      - *gzsw_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *czwl_resource_id_req
+
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::experiment_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::experiment_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_blank$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_str$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::experiment_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::experiment_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_str$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+
+  jschema_validate:
+    - &operate_success_jschema
+      validate: true
+      filelocation: local
+      filepath: operate_success_jschema.json
+      first: false
+      update: false
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema

@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "subject_id": {
+            "type": "integer"
+          },
+          "grade_phase": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rank": {
+            "type": "integer"
+          },
+          "level": {
+            "type": "integer"
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "updated_at": {
+            "type": "integer"
+          },
+          "auto_update_at": {
+            "type": "string"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "subject_id": {
+                  "type": "integer"
+                },
+                "grade_phase": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "rank": {
+                  "type": "integer"
+                },
+                "level": {
+                  "type": "integer"
+                },
+                "parent_id": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "integer"
+                },
+                "updated_at": {
+                  "type": "integer"
+                },
+                "auto_update_at": {
+                  "type": "string"
+                },
+                "children": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "auto_update_at",
+                "children",
+                "created_at",
+                "grade_phase",
+                "id",
+                "level",
+                "name",
+                "parent_id",
+                "rank",
+                "subject_id",
+                "updated_at"
+              ]
+            }
+          }
+        },
+        "required": [
+          "auto_update_at",
+          "children",
+          "created_at",
+          "grade_phase",
+          "id",
+          "level",
+          "name",
+          "parent_id",
+          "rank",
+          "subject_id",
+          "updated_at"
+        ]
+      }
+    }
+  },
+  "required": [
+    "code",
+    "data",
+    "message"
+  ]
+}

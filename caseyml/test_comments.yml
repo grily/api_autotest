@@ -1,0 +1,1518 @@
+author: fengzixuan
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 2-评论模块
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+#学科的pid
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+gzwl_pid_num: &gzwl_pid GZWLcJQXfD9W
+czhx_pid_num: &czhx_pid CZHXNDZHTa75
+gzhx_pid_num: &gzhx_pid GZHXXV8IClkO
+czsw_pid_num: &czsw_pid JuFhE84jRhEh
+gzsw_pid_num: &gzsw_pid EjEViMk33jNr
+xk_pid_num: &xk_pid iwjngieNGEAiEI2
+#登录用户
+login_name_7004: &login_7004 18722547004
+login_name_2701: &login_2701 13902122701
+login_password: &login_password 123456
+
+login:
+  run:
+  story: 01-【业务流程前置条件】登录
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件-返回token】用户a登录
+    - 【业务流程前置条件-返回token】用户b登录
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/username
+  request_param: &login_params
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &LoginParams
+      username: *login_7004
+      password: *login_password
+      platform: web
+      clientinfo: ~
+      pid: *czwl_pid
+#  请求参数
+  request_params:
+    - <<: *login_params
+    - <<: *login_params
+      params:
+        <<: *LoginParams
+        username: *login_2701
+  jschema_validate:
+    - &fzx_comments_login_jschema
+      validate: true
+      filelocation: local
+      filepath: fzx_checklogin_jschema.json
+      first: false
+      update: false
+    - *fzx_comments_login_jschema
+
+#  响应结果的处理
+  response:
+#    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: token_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token_7004_resp ]
+    - filepath: token_2701.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token_2701_resp ]
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.username::0$$$$" in (jsonpath(req_json,"$.phone")))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.username::0$$$$" in (jsonpath(req_json,"$.phone")))'
+
+checklogin:
+  run:
+  story: 02-【业务流程前置条件】校验登录
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件-使用用户a的token请求】校验用户a登录状态
+    - 【业务流程前置条件-使用用户b的token请求】校验用户b登录状态
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/check
+  request_param: &checklogin_params
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+      Authorization: Bearer $token_7004_req
+    params: &CheckloginParams
+      pid: *czwl_pid
+#  请求参数
+  request_params:
+    - <<: *checklogin_params
+    - <<: *checklogin_params
+      headers:
+        Content-Type: application/x-www-form-urlencoded
+        User-Agent: *agent
+        Authorization: Bearer $token_2701_req
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - &token_7004_req
+      online: false
+      type: response
+      case_id: token_7004.json
+      depend_key: [ auth_token_7004_resp ]
+      replace_key: [ token_7004_req ]
+    - &token_2701_req
+      online: false
+      type: response
+      case_id: token_2701.json
+      depend_key: [ auth_token_2701_resp ]
+      replace_key: [ token_2701_req ]
+#  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$json_file::token_7004.json::auth_token_7004_resp$$$$" in (jsonpath(req_json,"$.auth_token")))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$json_file::token_2701.json::auth_token_2701_resp$$$$" in (jsonpath(req_json,"$.auth_token")))'
+  jschema_validate:
+    - *fzx_comments_login_jschema
+    - *fzx_comments_login_jschema
+
+resources_list:
+  run:
+  story: 03-资源列表
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-返回初中物理的资源id】获取初中物理的资源(返回200,校验学科、学段正常)
+    - 【业务流程2-返回高中物理的资源id】获取高中物理的资源(返回200,校验学科、学段正常)
+    - 【业务流程3-返回初中化学的资源id】获取初中化学的资源(返回200,校验学科、学段正常)
+    - 【业务流程4-返回高中化学的资源id】获取高中化学的资源(返回200,校验学科、学段正常)
+    - 【业务流程5-返回初中生物的资源id】获取初中生物的资源(返回200,校验学科、学段正常)
+    - 【业务流程6-返回高中生物的资源id】获取高中生物的资源(返回200,校验学科、学段正常)
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/index
+  request_param: &resources_list_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &ResourcesListParams
+      subjectId: 1
+      gradePhase: 2
+      versionId: 1
+      dataVersion: 1
+      per-page: 50
+      actionType: 100
+      title: "电阻"
+#  请求参数
+  request_params:
+    - <<: *resources_list_params
+    - <<: *resources_list_params
+      params:
+        <<: *ResourcesListParams
+        gradePhase: 3
+        title: "电流"
+    - <<: *resources_list_params
+      params:
+        <<: *ResourcesListParams
+        subjectId: 2
+        gradePhase: 2
+        title: "反应"
+    - <<: *resources_list_params
+      params:
+        <<: *ResourcesListParams
+        subjectId: 2
+        gradePhase: 3
+        title: "实验"
+    - <<: *resources_list_params
+      params:
+        <<: *ResourcesListParams
+        subjectId: 3
+        gradePhase: 2
+        title: "光合作用"
+    - <<: *resources_list_params
+      params:
+        <<: *ResourcesListParams
+        subjectId: 3
+        gradePhase: 3
+        title: "影响"
+#  响应结果的处理
+  response:
+    - filepath: czwl_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '伏安法测电阻')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_resource_id_7004_resp ]
+    - filepath: gzwl_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '电流的磁效应')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzwl_resource_id_7004_resp ]
+    - filepath: czhx_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '生石灰与水的反应')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czhx_resource_id_7004_resp ]
+    - filepath: gzhx_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: ["$.data[?(@.title == '喷泉实验')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_resource_id_7004_resp ]
+    - filepath: czsw_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '光合作用放氧实验')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_resource_id_7004_resp ]
+    - filepath: gzsw_resource_id_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '探究二氧化碳浓度对光合作用的影响')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_resource_id_7004_resp ]
+
+#  数据依赖的处理
+  depends_on: ~
+##  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))'
+      - 'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))'
+  jschema_validate:
+    - &resources_list_jschema
+      validate: true
+      filelocation: local
+      filepath: list_success_jschema.json
+      first: false
+      update: false
+    - *resources_list_jschema
+    - *resources_list_jschema
+    - *resources_list_jschema
+    - *resources_list_jschema
+    - *resources_list_jschema
+
+
+
+release_parent:
+  run: false
+  story: 04-发布评论
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-使用token和初中物理的资源id请求】验证能正常发布初中物理学科的评论(返回200,data内容为空)
+    - 【业务流程2-使用token和高中物理的资源id请求】验证能正常发布高中物理学科的评论(返回200,data内容为空)
+    - 【业务流程3-使用token和初中化学的资源id请求】验证能正常发布初中化学学科的评论(返回200,data内容为空)
+    - 【业务流程4-使用token和高中化学的资源id请求】验证能正常发布高中化学学科的评论(返回200,data内容为空)
+    - 【业务流程5-使用token和初中生物的资源id请求】验证能正常发布初中生物学科的评论(返回200,data内容为空)
+    - 【业务流程6-使用token和高中生物的资源id请求】验证能正常发布高中生物学科的评论(返回200,data内容为空)
+    - 验证评论对象ID错误，其他值正确时，无法正常评论(返回200,data内容为空,没有对评论对象ID的校验???)
+    - 验证评论类型错误，其他值正确时，无法正常评论(返回200,data内容为空,没有对评论类型的校验???)
+    - 验证评论对象ID和评论类型均错误，其他值正确时，无法正常评论(返回200,data内容为空,没有对评论对象ID、评论类型的校验???)
+    - 验证评论对象ID为空，其他值正确时，会报错(返回422,message提示:"评论对象ID不能为空")
+    - 验证评论类型为空，其他值正确时，会报错(返回422,message提示:"评论类型不能为空")
+    - 验证评论内容为空，其他值正确时，会报错(返回422,message提示:"评论内容不能为空")
+    - 验证评论父级id为空，其他值正确时，无法正常评论(返回200,data内容为空,评论不会在前端显示)
+    - 验证评论对象ID、评论类型、评论内容均为空时，会报错(返回422,message提示:"评论内容不能为空","评论类型不能为空","评论对象ID不能为空")
+    - 验证评论对象ID的数据类型错误，其他值正确时，会报错(返回422,message提示:"评论对象ID必须为str")
+    - 验证评论类型的数据类型错误，其他值正确时，会报错(返回422,message提示:"评论类型必须为str")
+    - 验证评论对象和评论类型的数据类型均错误，其他值正确时，会报错(返回422,message提示:"评论类型必须为str","评论类型必须为str")
+    - 验证评论内容中有特殊符号时，能够正常评论(返回200,data内容为空)
+    - 验证评论内容超出400个字符时，能够正常评论(返回200,data内容为空)
+    - 验证评论类型为大写时，能够正常评论(返回200,data内容为空)
+#  设置request_param 下的params 是params 还是data
+  params_type: json
+  host: *v6console_test
+  path: /v1/comment/release
+  request_param: &release_parent_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Content-Type: application/json
+      Authorization: Bearer $token_7004_req
+    json: &ReleaseParentParams
+      object_id: $czwl_resource_id_req  #伏安法测电阻 实验
+      object_type: "wuli"
+      content: "初中初中物理评论物理评论父父父"
+      parent_id: ~
+#  请求参数
+  request_params:
+    - <<: *release_parent_params
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzwl_resource_id_req   #电流的磁效应
+        content: "高中高中物理评论物理评论父父父"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $czhx_resource_id_req   #生石灰与水的反应
+        object_type: "huaxue"
+        content: "初中初中化学评论化学评论父父父"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req   #喷泉实验
+        object_type: "huaxue"
+        content: "高中高中化学评论化学评论父父父"
+    - <<: *release_parent_params
+      json:
+        <<: *release_parent_params
+        object_id: $czsw_resource_id_req
+        object_type: "shengwu_cz"      #光合作用放氧实验
+        content: "初中初中生物评论生物评论父父父"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzsw_resource_id_req
+        object_type: "shengwu_gz"      #探究二氧化碳浓度对光合作用的影响
+        content: "高中高中生物评论生物评论父父父"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: "发布错误id"
+        object_type: "huaxue"
+        content: "正常的化学评论1"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: "错误的评论类型"
+        content: "正常的化学评论2"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: "发布错误id"
+        object_type: "错误的评论类型"
+        content: "正常的化学评论3"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: ~
+        object_type: "huaxue"
+        content: "正常的化学评论4"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: ~
+        content: "正常的化学评论5"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: "huaxue"
+        content: ~
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: "huaxue"
+        content: "正常的化学评论6"
+        parent_id: ~
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: ~
+        object_type: ~
+        content: ~
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: 100
+        object_type: "shengwu"
+        content: "正常的化学评论7"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: 12345
+        content: "正常的化学评论7"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: 100
+        object_type: 12345
+        content: "正常的化学评论7"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: "huaxue"
+        content: "!@#$%^&*()"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: "huaxue"
+        content: "北京市，通称北京（汉语拼音：Běijīng；邮政式拼音：Peking），简称“京”，是中华人民共和国的首都及直辖市，是该国的政治、文化、科技、教育、军事和国际交往中心，是一座全球城市，是世界人口第三多的城市和人口最多的首都，具有重要的国际影响力[3]，同时也是目前世界唯一的“双奥之城”，即唯一既主办过夏季奥运会，也主办过冬季奥运会的城市。北京位于华北平原的西北边缘，背靠燕山，有永定河流经老城西南，毗邻天津市、河北省，为京津冀城市群的重要组成部分，验证字数超过限制时，是否能正确进行评论北京市，通称北京（汉语拼音：Běijīng；邮政式拼音：Peking），简称“京”，是中华人民共和国的首都及直辖市，是该国的政治、文化、科技、教育、军事和国际交往中心，是一座全球城市，是世界人口第三多的城市和人口最多的首都，具有重要的国际影响力[3]，同时也是目前世界唯一的“双奥之城”，即唯一既主办过夏季奥运会，也主办过冬季奥运会的城市。北京位于华北平原的西北边缘，背靠燕山，有永定河流经老城西南，毗邻天津市、河北省，为京津冀城市群的重要组成部分，验证字数超过限制时，是否能正确进行评论北京市，通称北京（汉语拼音：Běijīng；邮政式拼音：Peking），简称“京”，是中华人民共和国的首都及直辖市，是该国的政治、文化、科技、教育、军事和国际交往中心，是一座全球城市，是世界人口第三多的城市和人口最多的首都，具有重要的国际影响力[3]，同时也是目前世界唯一的“双奥之城”，即唯一既主办过夏季奥运会，也主办过冬季奥运会的城市。北京位于华北平原的西北边缘，背靠燕山，有永定河流经老城西南，毗邻天津市、河北省，为京津冀城市群的重要组成部分，验证字数超过限制时，是否能正确进行评论北京市，通称北京（汉语拼音：Běijīng；邮政式拼音：Peking），简称“京”，是中华人民共和国的首都及直辖市，是该国的政治、文化、科技、教育、军事和国际交往中心，是一座全球城市，是世界人口第三多的城市和人口最多的首都，具有重要的国际影响力[3]，同时也是目前世界唯一的“双奥之城”，即唯一既主办过夏季奥运会，也主办过冬季奥运会的城市。北京位于华北平原的西北边缘，背靠燕山，有永定河流经老城西南，毗邻天津市、河北省，为京津冀城市群的重要组成部分，验证字数超过限制时，是否能正确进行评论"
+    - <<: *release_parent_params
+      json:
+        <<: *ReleaseParentParams
+        object_id: $gzhx_resource_id_req
+        object_type: "HUAXUE"
+        content: "正常的化学评论8"
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - - *token_7004_req
+      - &czwl_resource_id_req
+        online: false
+        type: response
+        case_id: czwl_resource_id_7004.json
+        depend_key: [ czwl_resource_id_7004_resp ]
+        replace_key: [ czwl_resource_id_req ]
+    - - *token_7004_req
+      - &gzwl_resource_id_req 
+        online: false
+        type: response
+        case_id: gzwl_resource_id_7004.json
+        depend_key: [ gzwl_resource_id_7004_resp ]
+        replace_key: [ gzwl_resource_id_req ]
+    - - *token_7004_req
+      - &czhx_resource_id_req
+        online: false
+        type: response
+        case_id: czhx_resource_id_7004.json
+        depend_key: [ czhx_resource_id_7004_resp ]
+        replace_key: [ czhx_resource_id_req ]
+    - - *token_7004_req
+      - &gzhx_resource_id_req
+        online: false
+        type: response
+        case_id: gzhx_resource_id_7004.json
+        depend_key: [ gzhx_resource_id_7004_resp ]
+        replace_key: [ gzhx_resource_id_req ]
+    - - *token_7004_req
+      - &czsw_resource_id_req
+        online: false
+        type: response
+        case_id: czsw_resource_id_7004.json
+        depend_key: [ czsw_resource_id_7004_resp ]
+        replace_key: [ czsw_resource_id_req ]
+    - - *token_7004_req
+      - &gzsw_resource_id_req
+        online: false
+        type: response
+        case_id: gzsw_resource_id_7004.json
+        depend_key: [ gzsw_resource_id_7004_resp ]
+        replace_key: [ gzsw_resource_id_req ]
+    - - *token_7004_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_id_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_type_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_content_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_type_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_id_blank$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_content_blank$$$$" in jsonpath(req_json, "$.data[2].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_id_str$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_type_str$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_type_str$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_id_str$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+  jschema_validate:
+    - &release_parent_sucecess_jschema
+      validate: true
+      filelocation: local
+      filepath: release_parent_sucecess_jschema.json
+      first: false
+      update: false
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - &failure_jschema
+      validate: true
+      filelocation: local
+      filepath: failure_jschema.json
+      first: false
+      update: false
+    - *failure_jschema
+    - *failure_jschema
+    - *release_parent_sucecess_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+    - *release_parent_sucecess_jschema
+
+
+parent_comments_list:
+  run:
+  story: 05-评论列表
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-1-获取初中物理的父评论id】验证初中物理学科能正常获取评论的列表数据(返回200,校验学科、资源ID正常)
+    - 【业务流程2-1-获取高中物理的父评论id】验证高中物理学科能正常获取评论的列表数据(返回200,校验学科、资源ID正常)
+    - 【业务流程3-1-获取初中化学的父评论id】验证初中化学学科能正常获取评论的列表数据(返回200,校验学科、资源ID正常)
+    - 【业务流程4-1-获取高中化学的父评论id】验证高中化学学科能正常获取评论的列表数据(返回200,校验学科、资源ID正常)
+    - 【业务流程5-1-获取初中生物的父评论id】验证初中生物学科能正常获取评论的列表数据(返回200,校验学科、资源ID正常)
+    - 【业务流程6-1-获取高中生物的父评论id】验证高中生物学科能正常获取评论的列表数据(返回200,校验学科、资源ID正常)
+    - 验证评论对象ID正确，评论类型错误时，获取的数据为空(返回200,data内容为空)
+    - 验证评论对象ID错误，评论类型正确时，获取的数据为空(返回200,data内容为空)
+    - 验证评论对象ID和评论类型均错误时，获取的数据为空(返回200,data内容为空)
+    - 验证评论对象ID为空，评论类型正确时，会报错(返回422,message提示:"评论对象ID不能为空")
+    - 验证评论对象ID正确，评论类型为空时，会报错(返回422,message提示:"评论类型不能为空")
+    - 验证评论对象ID和评论类型均为空时，会报错(返回422,message提示:"评论类型不能为空","评论对象ID不能为空")
+    - 验证评论对象ID正确，评论类型为大写时，能够获取正确的数据(返回200,校验学科、资源ID正常)
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/comment/index
+  request_param: &parent_comments_list_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &ParentCommentsListParams
+      object_id: $czwl_resource_id_req     #伏安法测电阻 实验
+      object_type: "wuli"
+#  请求参数
+  request_params:
+    - <<: *parent_comments_list_params
+    - <<: *parent_comments_list_params
+      params:
+        <<: *ParentCommentsListParams
+        object_id: $gzwl_resource_id_req  #电流的磁效应 实验
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $czhx_resource_id_req  #生石灰与水的反应 实验
+        object_type: "huaxue"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $gzhx_resource_id_req  #喷泉实验 实验
+        object_type: "huaxue"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $czsw_resource_id_req  #光合作用放氧实验 实验
+        object_type: "shengwu_cz"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $gzsw_resource_id_req  #探究二氧化碳浓度对光合作用的影响 实验
+        object_type: "shengwu_gz"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $gzwl_resource_id_req
+        object_type: "错误的评论类型"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: 获取错误的id
+        object_type: "wuli"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: 获取错误的id
+        object_type: "错误的评论类型"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: ~
+        object_type: "wuli"
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $czhx_resource_id_req
+        object_type: ~
+    - <<: *parent_comments_list_params
+      params:
+        object_id: ~
+        object_type: ~
+    - <<: *parent_comments_list_params
+      params:
+        object_id: $gzwl_resource_id_req
+        object_type: "WULI"
+
+#  响应结果的处理
+  response:
+    - filepath: czwl_comment_PaId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_comment_PaId_7004_resp ]
+
+    - filepath: gzwl_comment_PaId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzwl_comment_PaId_7004_resp ]
+
+    - filepath: czhx_comment_PaId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czhx_comment_PaId_7004_resp ]
+
+    - filepath: gzhx_comment_PaId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_comment_PaId_7004_resp ]
+
+    - filepath: czsw_comment_PaId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_comment_PaId_7004_resp ]
+
+    - filepath: gzsw_comment_PaId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [  "$.data[0].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_comment_PaId_7004_resp ]
+
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+    - ~
+#  数据依赖的处理
+  depends_on:
+    - *czwl_resource_id_req
+    - *gzwl_resource_id_req
+    - *czhx_resource_id_req
+    - *gzhx_resource_id_req
+    - *czsw_resource_id_req
+    - *gzsw_resource_id_req
+    - *gzwl_resource_id_req
+    - ~
+    - ~
+    - ~
+    - *czhx_resource_id_req
+    - ~
+    - *gzwl_resource_id_req
+
+
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+    - - pytest.assume(200==req.status_code)
+#      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+#      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+#      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("Data Validation Failed" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_id_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("Data Validation Failed" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_type_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("Data Validation Failed" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_type_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_id_blank$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+  jschema_validate:
+    - &parent_comments_list_success_jschema
+      validate: true
+      filelocation: local
+      filepath: parent_comments_list_success_jschema.json
+      first: false
+      update: false
+    - *parent_comments_list_success_jschema
+    - *parent_comments_list_success_jschema
+    - *parent_comments_list_success_jschema
+    - *parent_comments_list_success_jschema
+    - *parent_comments_list_success_jschema
+    - &parent_comments_list_null_jschema
+      validate: true
+      filelocation: local
+      filepath: parent_comments_list_null_jschema.json
+      first: false
+      update: false
+    - *parent_comments_list_null_jschema
+    - *parent_comments_list_null_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *parent_comments_list_success_jschema
+
+
+release_son:
+  run: false
+  story: 05-发布子评论
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-2-使用token、初中物理的资源id和父评论id请求】验证能正常发布初中物理学科的子评论
+    - 【业务流程2-2-使用token、高中物理的资源id和父评论id请求】验证能正常发布高中物理学科的子评论
+    - 【业务流程3-2-使用token、初中化学的资源id和父评论id请求】验证能正常发布初中化学学科的子评论
+    - 【业务流程4-2-使用token、高中化学的资源id和父评论id请求】验证能正常发布高中化学学科的子评论
+    - 【业务流程5-2-使用token、初中生物的资源id和父评论id请求】验证能正常发布初中生物学科的子评论
+    - 【业务流程6-2-使用token、高中生物的资源id和父评论id请求】验证能正常发布高中生物学科的子评论
+  params_type: json
+  host: *v6console_test
+  path: /v1/comment/release
+  request_param: &release_son_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Content-Type: application/json
+      Authorization: Bearer $token_7004_req
+    json: &ReleaseSonParams
+      object_id: $czwl_resource_id_req  #伏安法测电阻 实验
+      object_type: "wuli"
+      content: "初中初中物理评论物理评论子子子"
+      parent_id: $czwl_comment_PaId_req
+  request_params:
+    - <<: *release_son_params
+    - <<: *release_son_params
+      json:
+        <<: *ReleaseSonParams
+        object_id: $gzwl_resource_id_req   #电流的磁效应
+        content: "高中高中物理评论物理评论子子子"
+        parent_id: $gzwl_comment_PaId_req
+    - <<: *release_son_params
+      json:
+        object_id: $czhx_resource_id_req   #生石灰与水的反应
+        object_type: "huaxue"
+        content: "初中初中化学评论化学评论子子子"
+        parent_id: $czhx_comment_PaId_req
+    - <<: *release_son_params
+      json:
+        object_id: $gzhx_resource_id_req   #喷泉实验
+        object_type: "huaxue"
+        content: "高中高中化学评论化学评论子子子"
+        parent_id: $gzhx_comment_PaId_req
+    - <<: *release_son_params
+      json:
+        object_id: $czsw_resource_id_req   #光合作用放氧实验
+        object_type: "shengwu_cz"
+        content: "初中初中生物评论生物评论子子子"
+        parent_id: $czsw_comment_PaId_req
+    - <<: *release_son_params
+      json:
+        object_id: $gzsw_resource_id_req   #探究二氧化碳浓度对光合作用的影响
+        object_type: "shengwu_gz"
+        content: "高中高中生物评论生物评论子子子"
+        parent_id: $gzsw_comment_PaId_req
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - - *token_7004_req
+      - *czwl_resource_id_req
+      - &czwl_comment_PaId_req  
+        online: false
+        type: response
+        case_id: czwl_comment_PaId_7004.json
+        depend_key: [ czwl_comment_PaId_7004_resp ]
+        replace_key: [ czwl_comment_PaId_req ]
+    - - *token_7004_req
+      - *gzwl_resource_id_req
+      - &gzwl_comment_PaId_req
+        online: false
+        type: response
+        case_id: gzwl_comment_PaId_7004.json
+        depend_key: [ gzwl_comment_PaId_7004_resp ]
+        replace_key: [ gzwl_comment_PaId_req ]
+    - - *token_7004_req
+      - *czhx_resource_id_req
+      - &czhx_comment_PaId_req 
+        online: false
+        type: response
+        case_id: czhx_comment_PaId_7004.json
+        depend_key: [ czhx_comment_PaId_7004_resp ]
+        replace_key: [ czhx_comment_PaId_req ]
+    - - *token_7004_req
+      - *gzhx_resource_id_req
+      - &gzhx_comment_PaId_req
+        online: false
+        type: response
+        case_id: gzhx_comment_PaId_7004.json
+        depend_key: [ gzhx_comment_PaId_7004_resp ]
+        replace_key: [ gzhx_comment_PaId_req ]
+    - - *token_7004_req
+      - *czsw_resource_id_req
+      - &czsw_comment_PaId_req
+        online: false
+        type: response
+        case_id: czsw_comment_PaId_7004.json
+        depend_key: [ czsw_comment_PaId_7004_resp ]
+        replace_key: [ czsw_comment_PaId_req ]
+    - - *token_7004_req
+      - *gzsw_resource_id_req 
+      - &gzsw_comment_PaId_req
+        online: false
+        type: response
+        case_id: gzsw_comment_PaId_7004.json
+        depend_key: [ gzsw_comment_PaId_7004_resp ]
+        replace_key: [ gzsw_comment_PaId_req ]
+#  断言
+  assert:
+#    一个case里的多重断言
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+  jschema_validate:
+    - &release_son_success_jschema
+      validate: true
+      filelocation: local
+      filepath: release_son_success_jschema.json
+      first: false
+      update: false
+    - *release_son_success_jschema
+    - *release_son_success_jschema
+    - *release_son_success_jschema
+    - *release_son_success_jschema
+    - *release_son_success_jschema
+
+
+son_comments_list:
+  run: false
+  story: 06-子评论列表
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-2-获取初中物理的子评论id】验证初中物理学科能正常获取子评论的列表数据(返回200,校验学科、资源ID、父评论ID正常)
+    - 【业务流程2-2-获取高中物理的子评论id】验证高中物理学科能正常获取子评论的列表数据(返回200,校验学科、资源ID、父评论ID正常)
+    - 【业务流程3-2-获取初中化学的子评论id】验证初中化学学科能正常获取子评论的列表数据(返回200,校验学科、资源ID、父评论ID正常)
+    - 【业务流程4-2-获取高中化学的子评论id】验证高中化学学科能正常获取子评论的列表数据(返回200,校验学科、资源ID、父评论ID正常)
+    - 【业务流程5-2-获取初中生物的子评论id】验证初中生物学科能正常获取子评论的列表数据(返回200,校验学科、资源ID、父评论ID正常)
+    - 【业务流程6-2-获取高中生物的子评论id】验证高中生物学科能正常获取子评论的列表数据(返回200,校验学科、资源ID、父评论ID正常)
+  params_type: params
+  host: *v6console_test
+  path: /v1/comment/index
+  request_param: &son_comments_list_params
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &SonCommentsListParams
+      object_id: $czwl_resource_id_req     #伏安法测电阻 实验
+      object_type: "wuli"
+      parent_id: $czwl_comment_PaId_req
+#  请求参数
+  request_params:
+    - <<: *son_comments_list_params
+    - <<: *son_comments_list_params
+      params:
+        <<: *SonCommentsListParams
+        object_id: $gzwl_resource_id_req  #电流的磁效应 实验
+        parent_id: $gzwl_comment_PaId_req
+    - <<: *son_comments_list_params
+      params:
+        object_id: $czhx_resource_id_req  #生石灰与水的反应 实验
+        object_type: "huaxue"
+        parent_id: $czhx_comment_PaId_req
+    - <<: *son_comments_list_params
+      params:
+        object_id: $gzhx_resource_id_req  #喷泉实验 实验
+        object_type: "huaxue"
+        parent_id: $gzhx_comment_PaId_req
+    - <<: *son_comments_list_params
+      params:
+        object_id: $czsw_resource_id_req  #光合作用放氧实验 实验
+        object_type: "shengwu_cz"
+        parent_id: $czsw_comment_PaId_req
+    - <<: *son_comments_list_params
+      params:
+        object_id: $gzsw_resource_id_req  #探究二氧化碳浓度对光合作用的影响 实验
+        object_type: "shengwu_gz"
+        parent_id: $gzsw_comment_PaId_req
+#  响应结果的处理
+  response:
+    - filepath: czwl_comment_SonId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_comment_SonId_7004_resp ]
+    - filepath: gzwl_comment_SonId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzwl_comment_SonId_7004_resp ]
+    - filepath: czhx_comment_SonId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czhx_comment_SonId_7004_resp ]
+    - filepath: gzhx_comment_SonId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_comment_SonId_7004_resp ]
+    - filepath: czsw_comment_SonId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_comment_SonId_7004_resp ]
+    - filepath: gzsw_comment_SonId_7004.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[0].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_comment_SonId_7004_resp ]
+
+#  数据依赖的处理
+  depends_on:
+    - - *czwl_resource_id_req
+      - *czwl_comment_PaId_req
+    - - *gzwl_resource_id_req
+      - *gzwl_comment_PaId_req
+    - - *czhx_resource_id_req
+      - *czhx_comment_PaId_req
+    - - *gzhx_resource_id_req
+      - *gzhx_comment_PaId_req
+    - - *czsw_resource_id_req
+      - *czsw_comment_PaId_req
+    - - *gzsw_resource_id_req
+      - *gzsw_comment_PaId_req
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+      - 'pytest.assume($$$$req_param::$.params.parent_id::0$$$$ in jsonpath(req_json,"$.data[:].parent_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+      - 'pytest.assume($$$$req_param::$.params.parent_id::0$$$$ in jsonpath(req_json,"$.data[:].parent_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+      - 'pytest.assume($$$$req_param::$.params.parent_id::0$$$$ in jsonpath(req_json,"$.data[:].parent_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+      - 'pytest.assume($$$$req_param::$.params.parent_id::0$$$$ in jsonpath(req_json,"$.data[:].parent_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+      - 'pytest.assume($$$$req_param::$.params.parent_id::0$$$$ in jsonpath(req_json,"$.data[:].parent_id"))'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))'
+      - 'pytest.assume($$$$req_param::$.params.object_id::0$$$$ in jsonpath(req_json,"$.data[:].object_id"))'
+      - 'pytest.assume($$$$req_param::$.params.parent_id::0$$$$ in jsonpath(req_json,"$.data[:].parent_id"))'
+  jschema_validate:
+    - &son_comments_list_success_jschema
+      validate: true
+      filelocation: local
+      filepath: son_comments_list_success_jschema.json
+      first: false
+      update: false
+    - *son_comments_list_success_jschema
+    - *son_comments_list_success_jschema
+    - *son_comments_list_success_jschema
+    - *son_comments_list_success_jschema
+    - *son_comments_list_success_jschema
+
+
+
+operate:
+  run: false
+  story: 07-操作[点赞、取消点赞]
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程1-1-1-使用初中物理的父评论id请求】验证初中物理学科的父评论能正常点赞(返回200,data内容为空)
+    - 【业务流程1-1-2-使用初中物理的父评论id请求】验证初中物理学科的父评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程1-2-1-使用初中物理的子评论id请求】验证初中物理学科的子评论能正常点赞(返回200,data内容为空)
+    - 【业务流程1-2-2-使用初中物理的子评论id请求】验证初中物理学科的子评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程2-1-1-使用高中物理的父评论id请求】验证高中物理学科的父评论能正常点赞(返回200,data内容为空)
+    - 【业务流程2-1-2-使用高中物理的父评论id请求】验证高中物理学科的父评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程2-2-1-使用高中物理的子评论id请求】验证高中物理学科的子评论能正常点赞(返回200,data内容为空)
+    - 【业务流程2-2-2-使用高中物理的子评论id请求】验证高中物理学科的子评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程3-1-1-使用初中化学的父评论id请求】验证初中化学学科的父评论能正常点赞(返回200,data内容为空)
+    - 【业务流程3-1-2-使用初中化学的父评论id请求】验证初中化学学科的父评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程3-2-1-使用初中化学的子评论id请求】验证初中化学学科的子评论能正常点赞(返回200,data内容为空)
+    - 【业务流程3-2-2-使用初中化学的子评论id请求】验证初中化学学科的子评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程4-1-1-使用高中化学的父评论id请求】验证高中化学学科的父评论能正常点赞(返回200,data内容为空)
+    - 【业务流程4-1-2-使用高中化学的父评论id请求】验证高中化学学科的父评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程4-2-1-使用高中化学的子评论id请求】验证高中化学学科的子评论能正常点赞(返回200,data内容为空)
+    - 【业务流程4-2-2-使用高中化学的子评论id请求】验证高中化学学科的子评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程5-1-1-使用初中生物的父评论id请求】验证初中生物学科的父评论能正常点赞(返回200,data内容为空)
+    - 【业务流程5-1-2-使用初中生物的父评论id请求】验证初中生物学科的父评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程5-2-1-使用初中生物的子评论id请求】验证初中生物学科的子评论能正常点赞(返回200,data内容为空)
+    - 【业务流程5-2-2-使用初中生物的子评论id请求】验证初中生物学科的子评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程6-1-1-使用高中生物的父评论id请求】验证高中生物学科的父评论能正常点赞(返回200,data内容为空)
+    - 【业务流程6-1-2-使用高中生物的父评论id请求】验证高中生物学科的父评论能正常取消点赞(返回200,data内容为空)
+    - 【业务流程6-2-1-使用高中生物的子评论id请求】验证高中生物学科的子评论能正常点赞(返回200,data内容为空)
+    - 【业务流程6-2-2-使用高中生物的子评论id请求】验证高中生物学科的子评论能正常取消点赞(返回200,data内容为空)
+    - 验证操作正确评论ID错误时，无法正常进行操作,会报错(返回400,message提示:"操作失败",没有对资源id的校验???)
+    - 验证操作错误评论ID正确时，无法正常进行操作,会报错(返回422,message提示:"动作是无效的")
+    - 验证操作和评论ID均错误时，无法正常进行操作,会报错(返回422,message提示:"动作是无效的",没有对资源id的校验???)
+    - 验证操作为空评论ID正确时，无法正常进行操作,会报错(返回422,message提示:"动作不能为空")
+    - 验证操作正确评论ID为空时，无法正常进行操作,会报错(返回422,message提示:"评论ID不能为空")
+    - 验证操作和评论ID均为空时，无法正常进行操作,会报错(返回422,message提示:"评论ID不能为空","动作不能为空")
+    - 验证操作的数据类型错误，评论ID数据类型正确时，无法正常进行操作(返回200,data内容为空,没有对操作数据类型的校验???)
+    - 验证评论ID数据类型错误，操作的数据类型正确时，无法正常进行操作,会报错(返回422,message提示:"评论ID必须为int")
+    - 验证评论ID和操作的数据类型均错误时，无法正常进行操作,会报错(返回422,message提示:"评论ID必须为int",没有对操作数据类型的校验???)
+    - 验证操作为大写时，无法正常进行操作,会报错(返回422,message提示:"动作是无效的")
+#  设置request_param 下的params 是params 还是data
+  params_type: json
+  host: *v6console_test
+  path: /v1/comment/push-operates
+  request_param: &operate_params
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Content-Type: application/json
+      Authorization: Bearer $token_2701_req
+    json: &OperateParams
+      id: $czwl_comment_PaId_req
+      action: "likes"
+      subjectId: 1
+#  请求参数
+  request_params:
+    - <<: *operate_params
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "unlikes"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czwl_comment_SonId_req
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czwl_comment_SonId_req
+        action: "unlikes"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzwl_comment_PaId_req
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzwl_comment_PaId_req
+        action: "unlikes"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzwl_comment_SonId_req
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzwl_comment_SonId_req
+        action: "unlikes"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czhx_comment_PaId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $czhx_comment_PaId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czhx_comment_SonId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $czhx_comment_SonId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzhx_comment_PaId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzhx_comment_PaId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzhx_comment_SonId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzhx_comment_SonId_req
+        subjectId: 2
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czsw_comment_PaId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $czsw_comment_PaId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $czsw_comment_SonId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $czsw_comment_SonId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzsw_comment_PaId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzsw_comment_PaId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: $gzsw_comment_SonId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        action: "unlikes"
+        id: $gzsw_comment_SonId_req
+        subjectId: 3
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: 0
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "任意操作"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "任意操作"
+        id: 0
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: ~
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: ~
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: ~
+        id: ~
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: 0
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        id: "资源id"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: 0
+        id: "资源id"
+    - <<: *operate_params
+      json:
+        <<: *OperateParams
+        action: "LIKES"
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - - *token_2701_req
+      - *czwl_comment_PaId_req
+    - - *token_2701_req
+      - *czwl_comment_PaId_req
+    - - *token_2701_req
+      - &czwl_comment_SonId_req
+        online: false
+        type: response
+        case_id: czwl_comment_SonId_7004.json
+        depend_key: [ czwl_comment_SonId_7004_resp ]
+        replace_key: [ czwl_comment_SonId_req ]
+    - - *token_2701_req
+      - *czwl_comment_SonId_req
+    - - *token_2701_req
+      - *gzwl_comment_PaId_req
+    - - *token_2701_req
+      - *gzwl_comment_PaId_req
+    - - *token_2701_req
+      - &gzwl_comment_SonId_req
+        online: false
+        type: response
+        case_id: gzwl_comment_SonId_7004.json
+        depend_key: [ gzwl_comment_SonId_7004_resp ]
+        replace_key: [ gzwl_comment_SonId_req ]
+    - - *token_2701_req
+      - *gzwl_comment_SonId_req
+    - - *token_2701_req
+      - *czhx_comment_PaId_req
+    - - *token_2701_req
+      - *czhx_comment_PaId_req
+    - - *token_2701_req
+      - &czhx_comment_SonId_req
+        online: false
+        type: response
+        case_id: czhx_comment_SonId_7004.json
+        depend_key: [ czhx_comment_SonId_7004_resp ]
+        replace_key: [ czhx_comment_SonId_req ]
+    - - *token_2701_req
+      - *czhx_comment_SonId_req
+    - - *token_2701_req
+      - *gzhx_comment_PaId_req
+    - - *token_2701_req
+      - *gzhx_comment_PaId_req
+    - - *token_2701_req
+      - &gzhx_comment_SonId_req
+        online: false
+        type: response
+        case_id: gzhx_comment_SonId_7004.json
+        depend_key: [ gzhx_comment_SonId_7004_resp ]
+        replace_key: [ gzhx_comment_SonId_req ]
+    - - *token_2701_req
+      - *gzhx_comment_SonId_req
+    - - *token_2701_req
+      - *czsw_comment_PaId_req
+    - - *token_2701_req
+      - *czsw_comment_PaId_req
+    - - *token_2701_req
+      - &czsw_comment_SonId_req
+        online: false
+        type: response
+        case_id: czsw_comment_SonId_7004.json
+        depend_key: [ czsw_comment_SonId_7004_resp ]
+        replace_key: [ czsw_comment_SonId_req ]
+    - - *token_2701_req
+      - *czsw_comment_SonId_req
+    - - *token_2701_req
+      - *gzsw_comment_PaId_req
+    - - *token_2701_req
+      - *gzsw_comment_PaId_req
+    - - *token_2701_req
+      - &gzsw_comment_SonId_req
+        online: false
+        type: response
+        case_id: gzsw_comment_SonId_7004.json
+        depend_key: [ gzsw_comment_SonId_7004_resp ]
+        replace_key: [ gzsw_comment_SonId_req ]
+    - - *token_2701_req
+      - *gzsw_comment_SonId_req
+    - - *token_2701_req
+    - - *token_2701_req
+      - *czwl_comment_PaId_req
+    - - *token_2701_req
+    - - *token_2701_req
+      - *czwl_comment_PaId_req
+    - - *token_2701_req
+    - - *token_2701_req
+    - - *token_2701_req
+      - *czwl_comment_PaId_req
+    - - *token_2701_req
+    - - *token_2701_req
+    - - *token_2701_req
+      - *czwl_comment_PaId_req
+#  断言
+  assert:
+#    一个case里的多重断言
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(400==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::bad_request$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::operate_fail$$$$" in jsonpath(req_json, "$.data.manual_detail")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_blank$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_blank$$$$" in jsonpath(req_json, "$.data[1].message")[0])'
+    - - pytest.assume(200==req.status_code)
+      - 'pytest.assume([] == jsonpath(req_json,"$.data")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::comment_int$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+    - - pytest.assume(422==req.status_code)
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::data_fail$$$$" in jsonpath(req_json, "$.message")[0])'
+      - 'pytest.assume("$$$$json_file::fzx_assert_message.json::action_invalid$$$$" in jsonpath(req_json, "$.data[:].message")[0])'
+  jschema_validate:
+    - &operate_success_jschema
+      validate: true
+      filelocation: local
+      filepath: operate_success_jschema.json
+      first: false
+      update: false
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - *operate_success_jschema
+    - &operate_exception_jschema
+      validate: true
+      filelocation: local
+      filepath: operate_exception_jschema.json
+      first: false
+      update: false
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *operate_success_jschema
+    - *failure_jschema
+    - *failure_jschema
+    - *failure_jschema

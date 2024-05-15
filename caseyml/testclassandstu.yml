@@ -1,0 +1,3892 @@
+author: zhangxicheng
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 1-班级管理模块相关功能
+
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6-dev.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+# 学科字段
+subject_phy: &wl 1
+subject_chem: &hx 2
+subject_bio: &sw 3
+subject_xk: &xk 4
+# 学段字段
+grade_phase_primary: &small 1
+grade_phase_middle: &cz 2
+grade_phase_high: &gz 3
+#登陆账号
+teacher_login: &teacher_phone 15175651595
+teacher_password: &all_password 123456
+stuA_login: &stuA_phone 18533786626
+stuB_login: &stuB_phone 13290661832
+
+# 登陆两个账号（教师和学生）
+login:
+  run:
+  story: 01-【业务流程前置条件】登录教师和学生账号
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件1】登录-教师账号15175651595
+    - 【业务流程前置条件2】登陆-学生A账号18533786626
+    - 【业务流程前置条件3】登陆-学生B账号13290661832
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/username
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &loginparams
+      username: *teacher_phone
+      password: *all_password
+      platform: web
+      clientinfo: ~
+      pid: &pid CZWlTE4lVgz9
+#  请求参数
+  request_params:
+    - <<: *req_param
+    - <<: *req_param
+      params:
+        <<: *loginparams
+        username: *stuA_phone
+    - <<: *req_param
+      params:
+        <<: *loginparams
+        username: *stuB_phone
+#  响应结果的处理
+  response:
+#    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: zxc_login_teacher_token.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ zxc_login_teacher_tk ]
+    - filepath: zxc_loginA_token.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token, $.user_id ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ zxc_loginA_tk, userbid ]
+    - filepath: zxc_loginB_token.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token, $.user_id ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ zxc_loginB_tk, userbid ]
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+#    一个case里的多重断言
+#    - pytest.assume('丰台十一中' in (jsonpath(req_json,'$.schoolname')))
+    - [pytest.assume(200==req.status_code),
+       'pytest.assume("$$$$req_param::$.params.username::0$$$$" in jsonpath(req_json, "$.phone"))']
+    - [pytest.assume(200==req.status_code),
+       'pytest.assume("$$$$req_param::$.params.username::0$$$$" in jsonpath(req_json, "$.phone"))']
+    - [pytest.assume(200==req.status_code),
+       'pytest.assume("$$$$req_param::$.params.username::0$$$$" in jsonpath(req_json, "$.phone"))']
+
+  jschema_validate:
+    - &logindemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_login_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *logindemo1
+      first: false
+    - ~
+
+# 检查登录状态
+checklogin:
+  run:
+  module_flag: *v5login_moduleflag
+  story: 登录
+  description: ["校验登录状态"]
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/check
+  request_param: &req_param1
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params:
+      pid: *pid
+  request_params:
+    - <<: *req_param1
+  response: ~
+  depends_on:
+#    online: 默认为true，当炎False时，表示要读取文件。online 使用 getattr来获取相应的值。
+#    当使用在线模式时，case_id 为空，此时的depend_key表示是哪个key
+#    当online为False时，depned_key的值为jsonpath表达式。
+#    当type为response时，此时的case_id的值为json文件在response_data目录下的相对路径名称,如0018.json
+#    当type为request时，case_id的值为具体的为所依赖的case所在的yml文件,如: test_demo.yml::login
+#    目前不考虑request类型的依赖,因为在同个yml文件中可以进行数据引用。
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+
+  assert:
+    - pytest.assume(200==req.status_code)
+  jschema_validate:
+    - &checklogindemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_checklogin_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+
+# 创建班级
+classcreate:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 02-创建班级
+  description:
+    - 【流程1】验证-正常传参-初中物理创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程2】验证-正常传参-高中物理创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程3】验证-正常传参-初中化学创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程4】验证-正常传参-高中化学创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程5】验证-正常传参-初中生物创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程6】验证-正常传参-高中生物创建班级-结果成功（返回200，校验学科、学段正常）
+    - 验证-传入班级名为空（学科、学段正常）-创建班级-结果异常（返回422，message提示：”班级名不能为空“）
+    - 验证-传入学科为空（班级名、学段正常）-创建班级-结果异常（返回422，message提示：”所属学科 cannot be blank“）
+    - 验证-传入学段为空（学科、班级名正常）-创建班级-结果异常（返回422，message提示：”所属学段 cannot be blank“）
+    - 验证-传入班级名、学科为空（学段正常）-创建班级-结果异常（返回422，返回2条message提示：”班级名不能为空“，”所属学科 cannot be blank“）
+    - 验证-传入班级名、学段为空（学科正常）-创建班级-结果异常（返回422，返回2条message提示：”班级名不能为空“，”所属学段 cannot be blank“）
+    - 验证-传入学科、学段为空（班级名正常）-创建班级-结果异常（返回422，返回2条message提示：”所属学科 cannot be blank“，”所属学段 cannot be blank“）
+    - 验证-所有字段为空-创建班级-结果异常（返回422，返回3条message提示：”班级名不能为空“，”所属学段 cannot be blank“，所属学科 cannot be blank“，）
+    - 验证-传入错误学科id（班级名、学段正常）-创建班级-结果异常（返回200，但是实际没有这个班级？？？？）
+    - 验证-传入错误学段id（班级名、学科正常）-创建班级-结果异常（返回200，但是实际没有这个班级？？？？）
+    - 【流程1-1】验证-传入特殊字符班级名（学段、学科正常）-创建班级-结果成功（返回200，校验学科、学段正常）
+    - 验证-非登陆状态-创建班级-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/create
+  request_param: &req_param3
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &createparams
+      name: zxc脚本班级czwl
+      subject_id: *wl
+      grade_phase_id: *cz
+  request_params:
+    - <<: *req_param3
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级gzwl
+        subject_id: *wl
+        grade_phase_id: *gz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级czhx
+        subject_id: *hx
+        grade_phase_id: *cz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级gzhx
+        subject_id: *hx
+        grade_phase_id: *gz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级czsw
+        subject_id: *sw
+        grade_phase_id: *cz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级gzsw
+        subject_id: *sw
+        grade_phase_id: *gz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: ~
+        subject_id: *wl
+        grade_phase_id: *gz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级sbiderr
+        subject_id: ~
+        grade_phase_id: *gz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级griderr
+        subject_id: *sw
+        grade_phase_id: ~
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: ~
+        subject_id: ~
+        grade_phase_id: *cz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: ~
+        subject_id: *sw
+        grade_phase_id: ~
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: zxc脚本班级(学科学段为空)
+        subject_id: ~
+        grade_phase_id: ~
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: ~
+        subject_id: ~
+        grade_phase_id: ~
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: 学科id错误
+        subject_id: 字符串学科
+        grade_phase_id: *cz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: 学段id错误
+        subject_id: *wl
+        grade_phase_id: 字符串学段
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: 特殊字符*&~！@￥#<br><tr>
+        subject_id: *wl
+        grade_phase_id: *gz
+    - <<: *req_param3
+      json:
+        <<: *createparams
+        name: 不登陆创建班级
+        subject_id: *wl
+        grade_phase_id: *gz
+  response:
+    - filepath: czwlclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    - filepath: gzwlclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    - filepath: czhxclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    - filepath: gzhxclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    - filepath: czswclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    - filepath: gzswclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    - filepath: err_name_czwlclass.json
+      resp_keys: [ $.data.id, $.data.class_no,$.data.status,$.data.name ]
+      keys: [ create_id, create_class_no, create_status, create_name ]
+    -
+
+  depends_on:
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    -
+
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_message$$$$" in jsonpath(req_json, "$.message")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_data_message$$$$" in jsonpath(req_json, "$.data[:].message")[0])']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_message$$$$" in jsonpath(req_json, "$.message")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_subject_id_null$$$$" in jsonpath(req_json, "$.data[:].message")[0])']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_message$$$$" in jsonpath(req_json, "$.message")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_grade_phase_id_null$$$$" in jsonpath(req_json, "$.data[:].message")[0])']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_message$$$$" in jsonpath(req_json, "$.message")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_data_message$$$$" in jsonpath(req_json, "$.data[:].message")[0])']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_data_message$$$$" in jsonpath(req_json, "$.data[:].message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_grade_phase_id_null$$$$" in jsonpath(req_json, "$.data[:].message"))']
+    - [pytest.assume(422==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_subject_id_null$$$$" in jsonpath(req_json, "$.data[:].message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_grade_phase_id_null$$$$" in jsonpath(req_json, "$.data[:].message"))']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_classname_null_data_message$$$$" in jsonpath(req_json, "$.data[:].message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_subject_id_null$$$$" in jsonpath(req_json, "$.data[:].message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_grade_phase_id_null$$$$" in jsonpath(req_json, "$.data[:].message"))']
+    - [pytest.assume(200==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_successful_message$$$$" in jsonpath(req_json, "$.message"))']
+    - [pytest.assume(200==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_successful_message$$$$" in jsonpath(req_json, "$.message"))']
+    - [pytest.assume(200==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_successful_message$$$$" in jsonpath(req_json, "$.message"))']
+    - [pytest.assume(401==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classcreate_LoginRequired_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classcreate_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &classandstudemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_classandstu_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *classandstudemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *classandstudemo1
+      filepath: zxc_classandstu_null_jschema.json
+      first: false
+    - <<: *classandstudemo1
+      filepath: zxc_classandstu_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    - <<: *classandstudemo1
+      filepath: zxc_classandstu_unlogin_jschema.json
+      first: false
+
+
+# 获取我创建或加入的班级列表
+classmyandjoinlist:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 03-获取我创建或加入的班级列表
+  description:
+    - 【流程1】验证-传入正确参数-请求初中物理数据-结果成功（返回200，校验学科、学段正常）
+    - 【流程2】验证-传入正确参数-请求高中物理数据-结果成功（返回200，校验学科、学段正常）
+    - 【流程3】验证-传入正确参数-请求初中化学数据-结果成功（返回200，校验学科、学段正常）
+    - 【流程4】验证-传入正确参数-请求高中化学数据-结果成功（返回200，校验学科、学段正常）
+    - 【流程5】验证-传入正确参数-请求初中生物数据-结果成功（返回200，校验学科、学段正常）
+    - 【流程6】验证-传入正确参数-请求高中生物数据-结果成功（返回200，校验学科、学段正常）
+    - 验证-传入学科参数错误（其他字段正常）-请求数据-结果异常（返回200，但是学科字段返回值等于传入值，data内容为空？？？？）
+    - 验证-传入年级参数错误（其他字段正常）-请求数据-结果异常（返回200，但是学科字段返回值等于传入值，data内容为空？？？？）
+    - 验证-传入学科年级同时错误-请求数据-结果异常（返回200，但是学科字段返回值等于传入值，data内容为空？？？？）
+    - 验证-传入年级字段为空（学科字段正常）-请求数据-结果异常（返回400“小程序版本修改为200”），message提示：”Bad Request“，并且data内容为空）
+    - 验证-传入学科字段为空（年级字段正常）-请求数据-结果异常（返回400“小程序版本修改为200”，message提示：“Bad Request”，并且data内容为空）
+    - 验证-传入年级学科都为空-请求数据-结果异常（返回400“小程序版本修改为200”，message提示：“Bad Request“，并且data内容为空）
+    - 验证-不登录-请求正常数据-结果异常（返回401，message提示：”Login Required“）
+  params_type: params
+  host: *v6console_moduleflag
+  path: /v1/class/my-and-join-list
+  request_param: &req_param2
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params: &classparams
+      subject_id: *wl
+      grade_phase_id: *cz
+  request_params:
+    - <<: *req_param2
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *wl
+        grade_phase_id: *gz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *hx
+        grade_phase_id: *cz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *hx
+        grade_phase_id: *gz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *sw
+        grade_phase_id: *cz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *sw
+        grade_phase_id: *gz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *sw
+        grade_phase_id: 10
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: 10
+        grade_phase_id: *gz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: 20
+        grade_phase_id: 20
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *sw
+        grade_phase_id: ~
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: ~
+        grade_phase_id: *gz
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: ~
+        grade_phase_id: ~
+    - <<: *req_param2
+      params:
+        <<: *classparams
+        subject_id: *sw
+        grade_phase_id: *gz
+  response: ~
+  depends_on:
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    - online: false
+      type: response
+      case_id: zxc_login_teacher_token.json
+      depend_key: [ zxc_login_teacher_tk ]
+      replace_key: [token]
+    -
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.subject_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].subject_id"))',
+       'pytest.assume($$$$req_param::$.params.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].grade_phase_id"))',
+       'pytest.assume($$$$json_file::czwlclass.json::create_class_no$$$$ in jsonpath(req_json, "$.data.my_create[:].class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.subject_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].subject_id"))',
+       'pytest.assume($$$$req_param::$.params.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].grade_phase_id"))',
+       'pytest.assume($$$$json_file::gzwlclass.json::create_class_no$$$$ in jsonpath(req_json, "$.data.my_create[:].class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.subject_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].subject_id"))',
+       'pytest.assume($$$$req_param::$.params.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].grade_phase_id"))',
+       'pytest.assume($$$$json_file::czhxclass.json::create_class_no$$$$ in jsonpath(req_json, "$.data.my_create[:].class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.subject_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].subject_id"))',
+       'pytest.assume($$$$req_param::$.params.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].grade_phase_id"))',
+       'pytest.assume($$$$json_file::gzhxclass.json::create_class_no$$$$ in jsonpath(req_json, "$.data.my_create[:].class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.subject_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].subject_id"))',
+       'pytest.assume($$$$req_param::$.params.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].grade_phase_id"))',
+       'pytest.assume($$$$json_file::czswclass.json::create_class_no$$$$ in jsonpath(req_json, "$.data.my_create[:].class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.subject_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].subject_id"))',
+       'pytest.assume($$$$req_param::$.params.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.my_create[:].grade_phase_id"))',
+       'pytest.assume($$$$json_file::gzswclass.json::create_class_no$$$$ in jsonpath(req_json, "$.data.my_create[:].class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_new_null_manual_detail$$$$ == jsonpath(req_json,"$.data.my_create[:].name"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_successful_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_null_manual_detail$$$$ == jsonpath(req_json,"$.data.my_join")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_new_null_manual_detail$$$$ == jsonpath(req_json,"$.data.my_create[:].name"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_successful_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_null_manual_detail$$$$ == jsonpath(req_json,"$.data.my_join")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_new_null_manual_detail$$$$ == jsonpath(req_json,"$.data.my_create[:].name"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_successful_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_null_manual_detail$$$$ == jsonpath(req_json,"$.data.my_join")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_successful_message$$$$" in jsonpath(req_json, "$.message"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_successful_message$$$$" in jsonpath(req_json, "$.message"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_successful_message$$$$" in jsonpath(req_json, "$.message"))']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_subject_id_null_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classmyandjoinlist_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &classmyandjoindemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_classmyandjoin_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *classmyandjoindemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *classmyandjoindemo1
+      filepath: zxc_classmyandjoin_error_jschema.json
+      first: false
+    - <<: *classmyandjoindemo1
+      filepath: zxc_classmyandjoin_error_jschema.json
+      first: false
+    -
+    -
+    - <<: *classmyandjoindemo1
+      filepath: zxc_classmyandjoin_null_jschema.json
+      first: false
+    - <<: *classmyandjoindemo1
+      filepath: zxc_classmyandjoin_null_jschema.json
+      first: false
+    - <<: *classmyandjoindemo1
+      filepath: zxc_classmyandjoin_unlogin_jschema.json
+      first: false
+
+# 更新班级名称
+classupdate:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 04-更新班级名称
+  description:
+    - 【流程1】正常传参-更新初中物理-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【流程2】正常传参-更新高中物理-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【流程3】正常传参-更新初中化学-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【流程4】正常传参-更新高中化学-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【流程5】正常传参-更新初中生物-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【流程6】正常传参-更新高中生物-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 传入错误班级id（名称正常）-更新班级名称-结果异常（返回404，message提示：”Not Found“）
+    - 传入包含数字字母特殊字符班级名（id正常）-更新班级名称-结果正常（返回200，校验学科、学段正常）
+    - 传入包含数字字母特殊字符班级名和错误id-更新班级名称-结果异常（返回404，message提示：”Not Found“）
+    - 传入班级名参数为空（id正常）-更新班级名称-结果异常（返回422，message提示：”班级名不能为空“）
+    - 传入班级id参数为空（班级名正常）更新班级名称-结果异常（返回400，message提示：“Bad Request”）
+    - 传入班级名和班级id都为空-更新班级名称-结果异常（返回400，message提示：“Bad Request”）
+    - 使用错误账号登陆-更新班级名称-结果异常（返回403，提示“改班级不是您创建的, 禁止操作~”）
+    - 未登录状态下传入正常名字和id-更新班级名称-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/update
+  request_param: &req_param4
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &classupdateparams
+      name: 更新初中物理班级
+      id: $request_id
+  request_params:
+    - <<: *req_param4
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中物理班级
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新初中化学班级
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中化学班级
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新初中生物班级
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中生物班级
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 班级参数错误
+        id: 123456
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: sss123+-*/
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: sss123+-*/
+        id: 123456
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: ~
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: id为空班级
+        id: ~
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: ~
+        id: ~
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中生物班级
+        id: $request_id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中生物班级
+        id: $request_id
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    -
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(422==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_classname_null_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_classname_null_data_message$$$$" in jsonpath(req_json,"$.data[:].message"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(403==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_class_no_non_existent_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classupdate_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classupdate_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &classupdatedemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_classupdate_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *classupdatedemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *classupdatedemo1
+      filepath: zxc_classupdate_error_jschema.json
+      first: false
+    -
+    - <<: *classupdatedemo1
+      filepath: zxc_classupdate_error_jschema.json
+      first: false
+    - <<: *classupdatedemo1
+      filepath: zxc_classupdate_null_error_jschema.json
+      first: false
+    - <<: *classupdatedemo1
+      filepath: zxc_classupdate_null_jschema.json
+      first: false
+    - <<: *classupdatedemo1
+      filepath: zxc_classupdate_null_jschema.json
+      first: false
+    -
+    - <<: *classupdatedemo1
+      filepath: zxc_classupdate_unlogin_jschema.json
+      first: false
+
+# 获取班级信息通过id或者班级号
+classintroduce:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 05-获取班级信息通过id或者班级号
+  description:
+    - 【流程1】通过传入正常id或者班级号获取-初中物理-结果成功（返回200，校验学科、学段正常）
+    - 【流程2】通过传入正常id或者班级号获取-高中物理-结果成功（返回200，校验学科、学段正常）
+    - 【流程3】通过传入正常id或者班级号获取-初中化学-结果成功（返回200，校验学科、学段正常）
+    - 【流程4】通过传入正常id或者班级号获取-高中化学-结果成功（返回200，校验学科、学段正常）
+    - 【流程5】通过传入正常id或者班级号获取-初中生物-结果成功（返回200，校验学科、学段正常）
+    - 【流程6】通过传入正常id或者班级号获取-高中生物-结果成功（返回200，校验学科、学段正常）
+    - 【流程1-1】传入自己流程1创建的班级id-模拟搜索加入自己创建的班级-（返回403，manual_detail:"此班级是您创建的班级）
+    - 传入错误id（班级号正常）-获取班级信息-结果异常（返回404，message提示“Not Found”）
+    - 传入错误班级号（id正常）-获取班级信息-结果成功（返回200，校验学科、学段正常）
+    - 同时传入错误id和班级号-获取班级信息-结果异常（返回404，message提示“Not Found”）
+    - 传入正常班级号（id传空）获取班级信息-结果成功（返回200，校验学科、学段正常）
+    - 传入正常id（班级号传空）获取班级信息-结果成功（返回200，校验学科、学段正常）
+    - 传入班级号和id都传空-获取班级信息-结果异常（返回404，message提示“Not Found”）
+    - 使用学生账号，获取教师创建班级信息-结果异常（返回200.学生登陆也能获取教师数据）
+    - 未登录状态下-传入正常参数-获取班级信息-结果成功（返回200，校验学科、学段正常）
+  params_type: params
+  host: *v6console_test
+  path: /v1/class/info
+  request_param: &req_param5
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    params: &introduceparam
+      id: $request_id
+      class_no: $request_class_no
+  request_params:
+    - <<: *req_param5
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        is_verify_join: 1
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: iii333
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: 999222sss
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: asd123`~
+        class_no: cwid11`~
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: ~
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: ~
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: ~
+        class_no: ~
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+    - <<: *req_param5
+      params:
+        <<: *introduceparam
+        id: $request_id
+        class_no: $request_class_no
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id, create_class_no ]
+        replace_key: [ request_id, request_class_no ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(403==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_classname_null_data_message$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(200==req.status_code),
+       'pytest.assume($$$$req_param::$.params.class_no::0$$$$ in jsonpath(req_json, "$.data.class_no"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.id::0$$$$ in jsonpath(req_json, "$.data.id"))']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classintroduce_class_id_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classintroduce_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &classintroducedemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_classintroduce_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *classintroducedemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *classintroducedemo1
+      filepath: zxc_classintroduce_manual_detail_jschema.json
+      first: false
+    - <<: *classintroducedemo1
+      filepath: zxc_classintroduce_error_jschema.json
+      first: false
+    -
+    - <<: *classintroducedemo1
+      filepath: zxc_classintroduce_error_jschema.json
+      first: false
+    - <<: *classintroducedemo1
+      filepath: zxc_classintroduce_null_jschema.json
+      first: false
+    - <<: *classintroducedemo1
+      filepath: zxc_classintroduce_null_jschema.json
+      first: false
+    -
+    -
+    - <<: *classintroducedemo1
+      filepath: zxc_classintroduce_unlogin_jschema.json
+      first: false
+
+# 学生加入班级
+stujoinclass:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 06-学生加入班级
+  description:
+    - 【流程1】验证学生A加入-初中物理班级-结果成功（返回200，校验学科、学段正常）
+    - 【分支流程1】验证学生B加入-初中物理班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程2】验证学生A加入-高中物理班级-结果成功（返回200，校验学科、学段正常）
+    - 【分支流程2】验证学生B加入-高中物理班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程3】验证学生A加入-初中化学班级-结果成功（返回200，校验学科、学段正常）
+    - 【分支流程3】验证学生B加入-初中化学班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程4】验证学生A加入-高中化学班级-结果成功（返回200，校验学科、学段正常）
+    - 【分支流程4】验证学生B加入-高中化学班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程5】验证学生A加入-初中生物班级-结果成功（返回200，校验学科、学段正常）
+    - 【分支流程5】验证学生B加入-初中生物班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程6】验证学生A加入-高中生物班级-结果成功（返回200，校验学科、学段正常）
+    - 【分支流程6】验证学生B加入-高中生物班级-结果成功（返回200，校验学科、学段正常）
+    - 【流程1-1】验证-传入班级名为空（学科、班级id正常）重复加入班级-学生加入班级-结果异常（返回403，manual_detail提示：”此班级您已加入～“）
+    - 【流程1-2】验证-在高中加入初中班级-学生加入班级-结果异常（返回403，manual_detail提示：”此班级您已加入～“）
+    - 【流程1-3】验证-跨学科加入班级-学生加入班级-结果异常（返回403，manual_detail提示:"该班级属于【NB生物】, 请切换后再加入～"）
+    - 验证-传入学科为空（班级名、班级id正常）-学生加入班级-结果异常（返回400，manual_detail提示：”参数错误～“）
+    - 验证-传入班级id为空（学科、班级名正常）-学生加入班级-结果异常（返回400，manual_detail提示：”参数错误～“）
+    - 验证-传入班级名、学科为空（班级id正常）-学生加入班级-结果异常（返回400，manual_detail提示：”参数错误～“）
+    - 验证-传入班级名、班级id为空（学科正常）-学生加入班级-结果异常（返回400，manual_detail提示：”参数错误～“）
+    - 验证-传入学科、班级id为空（班级名正常）-学生加入班级-结果异常（返回400，manual_detail提示：”参数错误～“）
+    - 验证-所有字段为空-验证学生加入班级-结果异常（返回400，manual_detail提示：”参数错误～“）
+    - 验证-传入错误学科（班级名、学段正常）-学生加入班级-结果异常（返回404，manual_detail提示:"班级不存在～"）
+    - 验证-传入特殊字符班级名（班级id、学科正常）-学生加入班级-结果成功（返回403，manual_detail提示:"此班级您已加入～"）
+    - 验证-非登陆状态-学生加入班级-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/stu-join
+  request_param: &req_param6
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &joinclass
+      class_no: $request_class_no
+      subject_id: 1
+      stu_name: A同学张czwl
+  request_params:
+    - <<: *req_param6
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *wl
+        stu_name: B同学张czwl
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *wl
+        stu_name: A同学张gzwl
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *wl
+        stu_name: B同学张gzwl
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *hx
+        stu_name: A同学张czhx
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *hx
+        stu_name: B同学张czhx
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *hx
+        stu_name: A同学张gzhx
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *hx
+        stu_name: B同学张gzhx
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *sw
+        stu_name: A同学张czsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *sw
+        stu_name: B同学张czsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *sw
+        stu_name: A同学张gzsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *sw
+        stu_name: B同学张gzsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *sw
+        stu_name: ~
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *wl
+        stu_name: A同学张czwl
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *wl
+        stu_name: A同学张czwl
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: ~
+        stu_name: A同学张czwl
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: ~
+        subject_id: *sw
+        stu_name: B同学张gzsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: ~
+        stu_name: ~
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: ~
+        subject_id: *sw
+        stu_name: ~
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: ~
+        subject_id: ~
+        stu_name: B同学张gzsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: ~
+        subject_id: ~
+        stu_name: ~
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: 111111111
+        subject_id: *sw
+        stu_name: B同学张gzsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: 332sss
+        stu_name: B同学张gzsw
+    - <<: *req_param6
+      json:
+        <<: *joinclass
+        class_no: $request_class_no
+        subject_id: *sw
+        stu_name: B同学张gzsw
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ request_class_no ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [pytest.assume(403==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_already_join_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(403==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_err_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(403==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_err_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_classandstu_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_classandstu_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_classandstu_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_classandstu_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_classandstu_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_classandstu_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_non_existent_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(403==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_err_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(401==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::stujoinclass_class_no_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::stujoinclass_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &stujoinclassdemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_stujoinclass_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *stujoinclassdemo1
+      first: false
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    - <<: *stujoinclassdemo1
+      filepath: zxc_stujoinclassdemo1_null_jschema.json
+      first: false
+    - <<: *stujoinclassdemo1
+      filepath: zxc_stujoinclassdemo1_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *stujoinclassdemo1
+      filepath: zxc_stujoinclassdemo1_error_jschema.json
+      first: false
+    - <<: *stujoinclassdemo1
+      filepath: zxc_stujoinclassdemo1_error_jschema.json
+      first: false
+    - <<: *stujoinclassdemo1
+      filepath: zxc_stujoinclassdemo1_unlogin_jschema.json
+      first: false
+
+# 获取班级学生列表
+studentlist:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 07-获取学生列表
+  description:
+    - 【流程1】通过校验新加入的学生名-验证初中物理班级-是否有新加入的学生-结果成功（返回200，校验班级id正常）
+    - 【流程2】通过校验新加入的学生名-验证高中物理班级-是否有新加入的学生-结果成功（返回200，校验班级id正常）
+    - 【流程3】通过校验新加入的学生名-验证初中化学班级-是否有新加入的学生-结果成功（返回200，校验班级id正常）
+    - 【流程4】通过校验新加入的学生名-验证高中化学班级-是否有新加入的学生-结果成功（返回200，校验班级id正常）
+    - 【流程5】通过校验新加入的学生名-验证初中生物班级-是否有新加入的学生-结果成功（返回200，校验班级id正常）
+    - 【流程6】通过校验新加入的学生名-验证高中生物班级-是否有新加入的学生-结果成功（返回200，校验班级id正常）
+    - 验证-传入班级id为空（页码、数量正常）重复加入班级-获取学生列表-结果异常（返回400，manual_detail提示：”missing required parameters:class_id“）
+    - 验证-传入页码为空（班级id、数量正常）-获取学生列表-结果异常（返回200，页码为必填项目，但是传空依然返回数据？？？？）
+    - 验证-传入数量为空（页码、班级id正常）-获取学生列表-结果异常（返回200，数量为必填项目，但是传空依然返回数据？？？？）
+    - 验证-传入数量、页码为空（班级id正常）-获取学生列表-结果异常（返回200，数量和页码为必填项目，但是传空依然返回数据？？？？）
+    - 验证-传入数量、班级id为空（页码正常）-获取学生列表-结果异常（返回400，manual_detail提示：”missing required parameters:class_id“）
+    - 验证-传入页码、班级id为空（数量正常）-获取学生列表-结果异常（返回400，manual_detail提示：”missing required parameters:class_id“）
+    - 验证-所有字段为空-获取学生列表-结果异常（返回400，manual_detail提示：”missing required parameters:class_id“）
+    - 验证-传入错误班级id（页码、数量正常）-获取学生列表-结果异常（返回404，message提示:"Not Found"）
+    - 验证-传入错误页码（班级id、数量正常）-获取学生列表-结果异常（返回200，数量和页码为必填项目，但是传空依然返回数据？？？？）
+    - 验证-传入错误数量（班级id、页码正常）-获取学生列表-结果异常（返回200，数量和页码为必填项目，但是传空依然返回数据？？？？）
+    - 验证-传入错误数量、页码（班级id正常）-获取学生列表-结果异常（返回200，数量和页码为必填项目，但是传空依然返回数据？？？？）
+    - 验证-传入错误数量、班级id（页码正常）-获取学生列表-结果异常（返回404，message提示:"Not Found"）
+    - 验证-传入错误页码、班级id（数量正常）-获取学生列表-结果异常（返回404，message提示:"Not Found"）
+    - 验证-传入错误班级id、数量、页码-获取学生列表-结果成功（返回404，message提示:"Not Found"）
+    - 验证-非登陆状态-获取学生列表-结果异常（返回401，message提示：”Login Required“）
+  params_type: params
+  host: *v6console_test
+  path: /v1/class/users
+  request_param: &req_param7
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    params: &statuslistparam
+      class_id: $request_id
+      page: 1
+      per-page: 10
+  request_params:
+    - <<: *req_param7
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: 10
+
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: ~
+        page: 1
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: ~
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: ~
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: ~
+        per-page: ~
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: ~
+        page: 1
+        per-page: ~
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: ~
+        page: ~
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: ~
+        page: ~
+        per-page: ~
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: qweasdzxc21*#@
+        page: 1
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: asdqwe123
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: er!@#
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: sadfasdfa!!
+        per-page: er!@#
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: qweasdzxc21*#@
+        page: 1
+        per-page: er!@#
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: qweasdzxc21*#@
+        page: er!@#
+        per-page: 10
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: qweasdzxc21*#@
+        page: asdqwe123
+        per-page: er!@#qqqqq
+    - <<: *req_param7
+      params:
+        <<: *statuslistparam
+        class_id: $request_id
+        page: 1
+        per-page: 10
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_null_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentlist_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.params.class_id::0$$$$ in jsonpath(req_json, "$.data[:].class_id"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentlist_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentlist_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code), 'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentlist_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+    'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentlist_class_no_err_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+    'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentlist_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &studentlistdemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_studentlist_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *studentlistdemo1
+      first: false
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    -
+    - <<: *studentlistdemo1
+      filepath: zxc_studentlist_null_jschema.json
+      first: false
+    - <<: *studentlistdemo1
+      filepath: zxc_studentlist_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    -
+    - <<: *studentlistdemo1
+      filepath: zxc_studentlist_error_jschema.json
+      first: false
+    - <<: *studentlistdemo1
+      filepath: zxc_studentlist_error_jschema.json
+      first: false
+    -
+    - <<: *studentlistdemo1
+      filepath: zxc_studentlist_unlogin_jschema.json
+      first: false
+
+# 修改学生备注
+studentrename:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 08-修改学生备注
+  description:
+    - 【流程1】验证修改学生备注-初中物理-结果成功（返回200，校验学生名、班级id、用户id正常）
+    - 【流程2】验证修改学生备注-高中物理-结果成功（返回200，校验学生名、班级id、用户id正常）
+    - 【流程3】验证修改学生备注-初中化学-结果成功（返回200，校验学生名、班级id、用户id正常）
+    - 【流程4】验证修改学生备注-高中化学-结果成功（返回200，校验学生名、班级id、用户id正常）
+    - 【流程5】验证修改学生备注-初中生物-结果成功（返回200，校验学生名、班级id、用户id正常）
+    - 【流程6】验证修改学生备注-高中生物-结果成功（返回200，校验学生名、班级id、用户id正常）
+    - 验证-传入学生名为空（班级id、用户id正常）-修改学生备注-结果异常（返回422，message提示：”学生名称 cannot be blank.“）
+    - 验证-传入班级id为空（学生名、用户id正常）-修改学生备注-结果异常（返回400，message提示：”Bad Request“）
+    - 验证-传入用户id为空（班级id、学生名正常）-修改学生备注-结果异常（返回400，message提示：”Bad Request“）
+    - 验证-传入学生名、班级id为空（用户id正常）-修改学生备注-结果异常（返回400，message提示：”Bad Request“）
+    - 验证-传入学生名、用户id为空（班级id正常）-修改学生备注-结果异常（返回400，message提示：”Bad Request“）
+    - 验证-传入班级id、用户id为空（学生名正常）-修改学生备注-结果异常（返回400，message提示：”Bad Request“）
+    - 验证-所有字段为空-修改学生备注-结果异常（返回400，message提示：”Bad Request“）
+    - 验证-传入错误学生名（班级id、用户id正常）-修改学生备注-结果成功（返回200，校验学生名、班级id、用户id正常，但是产品要求姓名必须中文？？？？）
+    - 验证-传入错误班级id（学生名、用户id正常）-修改学生备注-结果异常（返回404，message提示：”Not Found“）
+    - 验证-传入错误用户id（班级id、学生名正常）-修改学生备注-结果异常（返回500，message提示：”Internal Server Error“）
+    - 验证-传入错误学生名、班级id（用户id正常）-修改学生备注-结果异常（返回404，message提示：”Not Found“）
+    - 验证-传入错误学生名、用户id（班级id正常）-修改学生备注-结果异常（返回500，message提示：”Internal Server Error“）
+    - 验证-传入错误班级id、用户id（学生名正常）-修改学生备注-结果异常（返回404，message提示：”Not Found“）
+    - 【流程1-1】验证-所有字段传入错误信息-修改学生备注-结果异常（返回404，message提示：”Not Found“）
+    - 【流程1-2】验证-使用学生账号-修改教师列表下的备注-结果异常（返回403，message提示“改班级不是您创建的, 禁止操作~”）
+    - 验证-非登陆状态-修改学生备注-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/stu-rename
+  request_param: &req_param8
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &sturenameparam
+      class_id: $request_id
+      user_id: $userbid
+      stu_name: A同学张修改czwl
+  request_params:
+    - <<: *req_param8
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: B同学张修改gzwl
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: A同学张修改czhx
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: B同学张修改gzhx
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: A同学张修改czsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: ~
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: ~
+        user_id: $userbid
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: ~
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: ~
+        user_id: $userbid
+        stu_name: ~
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: ~
+        stu_name: ~
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: ~
+        user_id: ~
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: ~
+        user_id: ~
+        stu_name: ~
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: 错误@E!q)(*&^?<br><tr>
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: 错误id11111ssd
+        user_id: $userbid
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: 错误ursss
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: 错误id11111ssd1
+        user_id: $userbid
+        stu_name: 错误@E!q)(*&^?<br><tr>1
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: 错误ursss2
+        stu_name: 错误@E!q)(*&^?<br><tr>2
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: 错误id11111ssd3
+        user_id: 错误ursss3
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: 错误id11111ssd4
+        user_id: 错误ursss4
+        stu_name: 错误@E!q)(*&^?<br><tr>4
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: B同学张修改gzsw
+    - <<: *req_param8
+      json:
+        <<: *sturenameparam
+        class_id: $request_id
+        user_id: $userbid
+        stu_name: B同学张修改gzsw
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(422==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_stuname_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_stu_name_null_message$$$$" in jsonpath(req_json, "$.data[:].message"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name"))',
+       'pytest.assume($$$$req_param::$.json.class_id::0$$$$ in jsonpath(req_json, "$.data.class_id"))',
+       'pytest.assume($$$$req_param::$.json.user_id::0$$$$ in jsonpath(req_json, "$.data.user_id"))']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(500==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_error_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(500==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_error_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_err_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_detail$$$$ == jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(403==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+        'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_Login_user_error_manual_detail$$$$" in jsonpath(req_json, "$.data.manual_detail"))']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentrename_user_id_null_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentrename_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &studentrenamedemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_studentrename_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *studentrenamedemo1
+      first: false
+    -
+    -
+    -
+    -
+    -
+    - <<: *studentrenamedemo1
+      filepath: zxc_studentrename_null_jschema.json
+      first: false
+    - <<: *studentrenamedemo1
+      filepath: zxc_studentrename_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    -
+    - <<: *studentrenamedemo1
+      filepath: zxc_studentrename_error_jschema.json
+      first: false
+    -
+    - <<: *studentrenamedemo1
+      filepath: zxc_studentrename_error_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *studentrenamedemo1
+      filepath: zxc_studentrename_unlogin_jschema.json
+      first: false
+
+# 学生退出班级
+studentquit:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 09-学生退出班级
+  description:
+    - 【流程1】初中物理的-之前操作的学生A退出班级-结果成功（返回200，校验message正常）
+    - 【流程2】高中物理的-之前操作的学生A退出班级-结果成功（返回200，校验message正常）
+    - 【流程3】初中化学的-之前操作的学生A退出班级-结果成功（返回200，校验message正常）
+    - 【流程4】高中化学的-之前操作的学生A退出班级-结果成功（返回200，校验message正常）
+    - 【流程5】初中生物的-之前操作的学生A退出班级-结果成功（返回200，校验message正常）
+    - 【流程6】高中生物的-之前操作的学生A退出班级-结果成功（返回200，校验message正常）
+    - 传入错误的班级id-之前操作的学生A退出班级-结果异常（返回404，message提示:"Not Found"）
+    - 传入空的班级id-之前操作的学生A退出班级-结果异常（返回400，message提示：”Bad Request“）
+    - 不传入班级id-之前操作的学生A退出班级-结果异常（返回404，message提示:"Not Found"）
+    - 使用教师身份登陆-之前操作的学生A退出班级-结果异常（返回200，校验message正常）
+    - 【流程1-1】使用学生B登陆-之前操作的学生A退出班级-结果异常（返回200，校验message正常）
+    - 【流程1-2】使用学生A登陆-之前操作的学生B退出班级-结果异常（返回200，校验message正常）
+    - 未登陆状态-之前操作的学生A退出班级-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/stu-quit
+  request_param: &req_param9
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &studentquitparam
+      class_id: $request_id
+  request_params:
+    - <<: *req_param9
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: eeesss1243
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: ~
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+    - <<: *req_param9
+      json:
+        <<: *studentquitparam
+        class_id: $request_id
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentquit_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &studentquitdemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_studentquit_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *studentquitdemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *studentquitdemo1
+      filepath: zxc_studentquit_error_jschema.json
+      first: false
+    - <<: *studentquitdemo1
+      filepath: zxc_studentquit_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *studentquitdemo1
+      filepath: zxc_studentquit_unlogin_jschema.json
+      first: false
+
+# 学生移出班级
+studentremove:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 10-学生移出班级
+  description:
+    - 【分支流程1】将初中物理的-学生B移出班级-结果成功（返回200，校验message正常）
+    - 【分支流程2】将高中物理的-学生B移出班级-结果成功（返回200，校验message正常）
+    - 【分支流程3】将初中化学的-学生B移出班级-结果成功（返回200，校验message正常）
+    - 【分支流程4】将高中化学的-学生B移出班级-结果成功（返回200，校验message正常）
+    - 【分支流程5】将初中生物的-学生B移出班级-结果成功（返回200，校验message正常）
+    - 【分支流程6】将高中生物的-学生B移出班级-结果成功（返回200，校验message正常）
+    - 传入错误班级id（用户id正常）学生B移出班级-结果异常（返回404，message提示:"Not Found"）
+    - 传入错误用户id（班级id正常）学生B移出班级-结果异常（返回500，message提示：”Internal Server Error“）
+    - 同时传入错误用户id、和错误班级id-学生B移出班级-结果异常（返回404，message提示:"Not Found"）
+    - 传入空的班级id（用户id正常）学生B移出班级-结果异常（返回400，message提示：”Bad Request“）
+    - 传入空的用户id（班级id正常）学生B移出班级-结果异常（返回400，message提示：”Bad Request“）
+    - 同时传入空的用户id、班级id-学生B移出班级-结果异常（返回400，message提示：”Bad Request“）
+    - 【分支流程1-1】使用学生A账号登陆（其他字段正常）-学生B移出班级-结果异常（返回403，manual_detail提示：”改班级不是您创建的, 禁止操作~“）
+    - 【分支流程1-2】使用学生B账号登陆（其他字段正常）-学生B移出班级-结果异常（返回403，manual_detail提示：”改班级不是您创建的, 禁止操作~“）
+    - 未登录状态-学生B移出班级-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/stu-remove
+  request_param: &req_param10
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &sturemoveparam
+      class_id: $request_id
+      user_id: $userbid
+  request_params:
+    - <<: *req_param10
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: wqe!@#$1231
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: wqe!@#$1231
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: wqe!@#$1231
+        user_id: wqe!@#$12313
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: ~
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: ~
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: ~
+        user_id: ~
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+    - <<: *req_param10
+      json:
+        <<: *sturemoveparam
+        class_id: $request_id
+        user_id: $userbid
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+      - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ userbid ]
+        replace_key: [ userbid ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(500==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_user_id_null_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_user_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(403==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_Login_user_error_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+    - [pytest.assume(403==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_Login_user_error_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::studentquit_user_id_null_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::studentremove_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+  jschema_validate:
+    - &studentremovedemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_studentremove_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *studentremovedemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *studentremovedemo1
+      filepath: zxc_studentremove_error_jschema.json
+      first: false
+    - <<: *studentremovedemo1
+      filepath: zxc_studentremove_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *studentremovedemo1
+      filepath: zxc_studentremove_unlogin_jschema.json
+      first: false
+
+# 解散班级
+classrelease:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 11-解散班级
+  description:
+    - 【流程1】将初中物理-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【流程2】将高中物理-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【流程3】将初中化学-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【流程4】将高中化学-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【流程5】将初中生物-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【流程6】将高中生物-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 传入错误的班级id-将之前操作的班级解散-结果异常（返回404，message提示‘Not Found’）
+    - 传入空的班级id-将之前操作的班级解散-结果异常（返回400，message提示‘Bad Request‘）
+    - 不传入班级id-操作班级解散-结果异常（返回404，message提示‘Not Found’）
+    - 将已经解散的班级再次传正确参数-将之前操作的班级解散-结果异常（返回404，message提示‘Not Found’）
+    - 使用学生A账号登陆操作教师班级id-将之前操作的班级解散-结果异常（返回404，message提示‘Not Found’）
+    - 使用学生B账号登陆操作教师班级id-将之前操作的班级解散-结果异常（返回404，message提示‘Not Found’）
+    - 【流程1-1】将初中物理-之前操作的别人创建班级，使用教师进行解散-结果异常（返回403，message提示"改班级不是您创建的, 禁止操作~"）
+    - 【流程1-2】将初中物理-之前操作的班级名带特殊字符班级解散-结果成功（返回403，校验message正常）
+    - 未登陆状态下-将之前操作的班级解散-结果异常（返回401，message提示：”Login Required“）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/release
+  request_param: &req_param11
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &classrelparam
+      id: $request_id
+  request_params:
+    - <<: *req_param11
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: DSAswa321342
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: ~
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+    - <<: *req_param11
+      json:
+        <<: *classrelparam
+        id: $request_id
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: czhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: czswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginA_token.json
+        depend_key: [ zxc_loginA_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_loginB_token.json
+        depend_key: [ zxc_loginB_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: err_name_czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: zxc_login_teacher_token.json
+        depend_key: [ zxc_login_teacher_tk ]
+        replace_key: [token]
+      - online: false
+        type: response
+        case_id: err_name_czwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+    - - online: false
+        type: response
+        case_id: gzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ request_id ]
+  assert:
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(400==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(404==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_err_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ == jsonpath(req_json,"$.data.manual_code")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(403==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_LoginRequired_message$$$$" in jsonpath(req_json,"$.message")[0])',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_Login_user_error_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_successful_message$$$$" in jsonpath(req_json,"$.message")[0])']
+    - [pytest.assume(401==req.status_code),'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_LoginRequired_message$$$$" in jsonpath(req_json, "$.message"))',
+       'pytest.assume($$$$json_file::zxc_class_prompt_message.json::classrelease_class_id_null_manual_code$$$$ in jsonpath(req_json,"$.data.manual_code"))',
+       'pytest.assume("$$$$json_file::zxc_class_prompt_message.json::classrelease_LoginRequired_manual_detail$$$$" in jsonpath(req_json,"$.data.manual_detail"))']
+
+  jschema_validate:
+    - &classreldemo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: zxc_classrel_jschema.json
+#      是否为第一次。值默认为false(含空),当不为true时，均被认为为false，其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *classreldemo1
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *classreldemo1
+      filepath: zxc_classrel_error_jschema.json
+      first: false
+    - <<: *classreldemo1
+      filepath: zxc_classrel_null_jschema.json
+      first: false
+    -
+    -
+    -
+    -
+    - <<: *classreldemo1
+      filepath: zxc_classrel_unlogin_jschema.json
+      first: false
+
+# 发布学案# 发布学案

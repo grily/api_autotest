@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "created_by": {
+          "type": "integer"
+        },
+        "created_at": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "created_at",
+        "created_by",
+        "id",
+        "title"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "data",
+    "message"
+  ]
+}

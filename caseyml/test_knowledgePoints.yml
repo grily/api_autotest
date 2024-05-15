@@ -1,0 +1,351 @@
+author: liruige
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 知识点专题
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6-dev.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+
+#teacher_username: &teacher_username 18010151728
+stu_username: &stu_username 2w86h574
+stu_password: &stu_password 51143lrg
+#使用&定义变量 stu_username  使用*stu_username可使用变量  <<表示合并到当前数据
+
+# 登录
+login:
+  run:
+  story: 01-【业务流程前置条件】-登录-个人中心需要登录
+  #  case的描述/目的
+  module_flag: *v5login_moduleflag
+  description:
+    - 【业务流程前置条件】-用户登录-2w86h574
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v5login_prod
+  path: /passport/v5/login/username
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params:
+      username: *stu_username
+      password: *stu_password
+      platform: web
+      clientinfo: ~
+      pid: *czwl_pid
+  # 请求参数
+  request_params:
+    - <<: *req_param
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: lrg_18201143011.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token ]
+  #  数据依赖的处理
+  depends_on: ~
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("liruige" in jsonpath(req_json, "$.nickname"))
+  jschema_validate:
+    - &jschema_login
+      #      是否进行校验，默认值为true(含空)
+      validate: true
+      #      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+      #      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+      #      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: lrg_login_jschema.json
+      #      是否为第一次。值默认为false(含空),其逻辑规则如下：
+      #      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+      #      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+      #      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+      #      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+
+
+
+# 物理知识点专题
+knowledgePoints:
+  run:
+  story: 02-【知识点专题】-获取知识点专题列表
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【初中物理】-获取知识点专题列表
+    - 【高中物理】-获取知识点专题列表
+    - 【初中化学】-获取知识点专题列表
+    - 【高中化学】-获取知识点专题列表
+    - 【初中生物】-获取知识点专题列表
+    - 【高中生物】-获取知识点专题列表
+
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v6console_prod
+  path: /v1/resource/index
+  request_param: &know_req_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &knowledgeparams
+      subjectId: 1
+      gradePhase: 2
+      dataVersion: wuli
+      actionType: 900
+      per-page: 100
+  # 请求参数
+  request_params:
+    - <<: *know_req_param
+    - <<: *know_req_param
+      params:
+        <<: *knowledgeparams
+        gradePhase: 3
+    - <<: *know_req_param
+      params:
+        <<: *knowledgeparams
+        subjectId: 2
+        gradePhase: 2
+        dataVersion: feature%2Fexecrise
+    - <<: *know_req_param
+      params:
+        <<: *knowledgeparams
+        subjectId: 2
+        gradePhase: 3
+        dataVersion: feature%2Fexecrise
+    - <<: *know_req_param
+      params:
+        <<: *knowledgeparams
+        subjectId: 3
+        gradePhase: 2
+        dataVersion: bio
+    - <<: *know_req_param
+      params:
+        <<: *knowledgeparams
+        subjectId: 3
+        gradePhase: 3
+        dataVersion: bio
+
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: &czwlknowledgeId lrg_czwlknowledgeId.json
+      resp_keys: [ "$.data[0].id" ]
+      keys: [ czwlknowledgeId ]
+    - filepath: &gzwlknowledgeId lrg_gzwlknowledgeId.json
+      resp_keys: [ "$.data[0].id" ]
+      keys: [ gzwlknowledgeId ]
+    - filepath: &czhxknowledgeId lrg_czhxknowledgeId.json
+      resp_keys: [ "$.data[0].id" ]
+      keys: [ czhxknowledgeId ]
+    - filepath: &gzhxknowledgeId lrg_gzhxknowledgeId.json
+      resp_keys: [ "$.data[0].id" ]
+      keys: [ gzhxknowledgeId ]
+    - filepath: &czswknowledgeId lrg_czswknowledgeId.json
+      resp_keys: [ "$.data[0].id" ]
+      keys: [ czswknowledgeId ]
+    - filepath: &gzswknowledgeId lrg_gzswknowledgeId.json
+      resp_keys: [ "$.data[0].id" ]
+      keys: [ gzswknowledgeId ]
+  #  数据依赖的处理 userlogin为公共依赖的数据，在depends_on中可以直接引用
+  userlogin: &userlogin
+      online: false
+      type: response
+      case_id: lrg_18201143011.json
+      depend_key: [ auth_token ]
+      replace_key: [ auth_token ]
+  depends_on:
+    - <<: *userlogin
+    - <<: *userlogin
+    - <<: *userlogin
+    - <<: *userlogin
+    - <<: *userlogin
+    - <<: *userlogin
+
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+  jschema_validate:
+    - &jschema_knowledgePoints
+      validate: true
+      filelocation: local
+      filepath: knowledgePoints_jschema_wl.json
+      first: false
+      update: false
+    - <<: *jschema_knowledgePoints
+
+    - <<: *jschema_knowledgePoints
+      filepath: knowledgePoints_jschema_hx.json
+    - <<: *jschema_knowledgePoints
+      filepath: knowledgePoints_jschema_hx.json
+
+    - <<: *jschema_knowledgePoints
+      filepath: knowledgePoints_jschema_sw.json
+    - <<: *jschema_knowledgePoints
+      filepath: knowledgePoints_jschema_sw.json
+
+
+# 知识点详情
+knowledge-topic-content:
+  run:
+  story: 03-【知识点】-知识点详情信息
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【知识点-初中物理】-知识点详情信息
+    - 【知识点-高中物理】-知识点详情信息
+    - 【知识点-初中化学】-知识点详情信息
+    - 【知识点-高中化学】-知识点详情信息
+    - 【知识点-初中生物】-知识点详情信息
+    - 【知识点-高中生物】-知识点详情信息
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v6console_prod
+  path: /v1/resource/knowledge-topic-content
+  request_param: &topicContent_rparam
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &topicContent_param
+      id: 1
+      subjectId: 1
+  # 请求参数
+  request_params:
+    - <<: *topicContent_rparam
+      params:
+        <<: *topicContent_param
+        id: $czwlknowledgeId
+    - <<: *topicContent_rparam
+      params:
+        <<: *topicContent_param
+        id: $gzwlknowledgeId
+    - <<: *topicContent_rparam
+      params:
+        <<: *topicContent_param
+        id: $czhxknowledgeId
+        subjectId: 2
+    - <<: *topicContent_rparam
+      params:
+        <<: *topicContent_param
+        id: $gzhxknowledgeId
+        subjectId: 2
+    - <<: *topicContent_rparam
+      params:
+        <<: *topicContent_param
+        id: $czswknowledgeId
+        subjectId: 3
+    - <<: *topicContent_rparam
+      params:
+        <<: *topicContent_param
+        id: $gzswknowledgeId
+        subjectId: 3
+
+  #  响应结果的处理
+  response:
+    ~
+  #  数据依赖的处理
+  depends_on:
+    - online: false
+      type: response
+      case_id: lrg_czwlknowledgeId.json
+      depend_key: [ czwlknowledgeId ]
+      replace_key: [ czwlknowledgeId ]
+    - online: false
+      type: response
+      case_id: lrg_gzwlknowledgeId.json
+      depend_key: [ gzwlknowledgeId ]
+      replace_key: [ gzwlknowledgeId ]
+    - online: false
+      type: response
+      case_id: lrg_czhxknowledgeId.json
+      depend_key: [ czhxknowledgeId ]
+      replace_key: [ czhxknowledgeId ]
+    - online: false
+      type: response
+      case_id: lrg_gzhxknowledgeId.json
+      depend_key: [ gzhxknowledgeId ]
+      replace_key: [ gzhxknowledgeId ]
+    - online: false
+      type: response
+      case_id: lrg_czswknowledgeId.json
+      depend_key: [ czswknowledgeId ]
+      replace_key: [ czswknowledgeId ]
+    - online: false
+      type: response
+      case_id: lrg_gzswknowledgeId.json
+      depend_key: [ gzswknowledgeId ]
+      replace_key: [ gzswknowledgeId ]
+
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume( $$$$json_file::lrg_czwlknowledgeId.json::czwlknowledgeId$$$$ in  jsonpath(req_json,"$.data.id"))'
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume( $$$$json_file::lrg_gzwlknowledgeId.json::gzwlknowledgeId$$$$ in  jsonpath(req_json,"$.data.id"))'
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume( $$$$json_file::lrg_czhxknowledgeId.json::czhxknowledgeId$$$$ in  jsonpath(req_json,"$.data.id"))'
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume( $$$$json_file::lrg_gzhxknowledgeId.json::gzhxknowledgeId$$$$ in  jsonpath(req_json,"$.data.id"))'
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume( $$$$json_file::lrg_czswknowledgeId.json::czswknowledgeId$$$$ in  jsonpath(req_json,"$.data.id"))'
+    - - pytest.assume(200 == req.status_code)
+      - 'pytest.assume( $$$$json_file::lrg_gzswknowledgeId.json::gzswknowledgeId$$$$ in  jsonpath(req_json,"$.data.id"))'
+  jschema_validate:
+    - &jschema_knowledge-topic-content
+      validate: false
+      filelocation: local
+      filepath: knowledge-topic-content_jschema_wl.json
+      first: false
+      update: false
+    - <<: *jschema_knowledge-topic-content
+
+    - <<: *jschema_knowledge-topic-content
+      filepath: knowledge-topic-content_jschema_hx.json
+    - <<: *jschema_knowledge-topic-content
+      filepath: knowledge-topic-content_jschema_hx.json
+
+    - <<: *jschema_knowledge-topic-content
+      filepath: knowledge-topic-content_jschema_sw.json
+    - <<: *jschema_knowledge-topic-content
+      filepath: knowledge-topic-content_jschema_sw.json
+

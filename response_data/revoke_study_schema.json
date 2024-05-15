@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "class_id": {
+          "type": "integer"
+        },
+        "task_id": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "integer"
+        },
+        "clas_task_map_count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "clas_task_map_count",
+        "class_id",
+        "map_id",
+        "status",
+        "task_id"
+      ]
+    }
+  },
+  "required": [
+    "code",
+    "data",
+    "message"
+  ]
+}

@@ -1,0 +1,5 @@
+/report/report/*
+/report/tmp/*
+/tmp/*
+/runlog/*.log
+#/response_data/*.json

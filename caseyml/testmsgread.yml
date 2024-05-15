@@ -1,0 +1,2054 @@
+author: qintianren
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 站内信模块的相关验证
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6-dev.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+# 学科字段
+subject_phy: &wl 1
+subject_chem: &hx 2
+subject_bio: &sw 3
+subject_xk: &xk 4
+# 学段字段
+grade_phase_primary: &xs 1
+grade_phase_middle: &cz 2
+grade_phase_high: &gz 3
+#登录账号
+qtr_username: &qtrphone 18624340009
+qtr_password: &qtrpassword 123456
+tr1_username: &tr1phone 15600816366
+
+#登录教师账号和学生账号
+login:
+  run:
+  story: 01-【业务流程前置条件】-登录教师账号和学生账号
+  #  所属的功能模块组，不同的模块组对应的域名不一样
+  #  module_flag的值会作为对应的host域名值所对应的key的前缀
+  #  如当前的module_flag为 v5login,那么必然存在
+  #  v5login_testhost、v5login_relhost、v5login_prodhost 这3个key
+  #  且这3个key的值对应着测试环境、灰度环境、生产环境的host域名。
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件】-登录学生A账号
+    - 【业务流程前置条件】-登录教师账号
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/username
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &loginparams
+      username: *qtrphone
+      password: *qtrpassword
+      platform: web
+      clientinfo: ~
+      pid: &pid CZWlTE4lVgz9
+  #  请求参数
+  request_params:
+    - <<: *req_param
+    - <<: *req_param
+      params:
+        <<: *loginparams
+        username: *tr1phone
+
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: qtrdenglu.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ token_qtrdenglu ]
+    - filepath: tr1denglu.json
+      resp_keys: [ $.auth_token ]
+      keys: [ token_tr1denglu ]
+  #  数据依赖的处理
+  depends_on: ~
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.username::0$$$$" in jsonpath(req_json, "$.phone"))']
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.username::0$$$$" in jsonpath(req_json, "$.phone"))']
+
+  jschema_validate:
+
+# 创建班级
+classcreate:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 02-【业务流程前置条件】-用教师账号创建班级
+  description:
+    - 【业务流程前置条件1】正常传参-初中物理创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件2】正常传参-高中化学创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件3】正常传参-初中生物创建班级-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件4】正常传参-高中生物创建班级-结果成功（返回200，校验学科、学段正常）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/create
+  request_param: &req_param1
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &createparams
+      name: qtr脚本班级czwl
+      subject_id: *wl
+      grade_phase_id: *cz
+  request_params:
+    - <<: *req_param1
+    - <<: *req_param1
+      json:
+        name: qtr脚本班级gzhx
+        subject_id: *hx
+        grade_phase_id: *gz
+    - <<: *req_param1
+      json:
+        name: qtr脚本班级czsw
+        subject_id: *sw
+        grade_phase_id: *cz
+    - <<: *req_param1
+      json:
+        name: qtr脚本班级gzsw
+        subject_id: *sw
+        grade_phase_id: *gz
+  response:
+    - filepath: qtrczwlclass.json
+      resp_keys: [ $.data.id, $.data.class_no, $.data.name ]
+      keys: [ create_id, create_class_no, create_name ]
+    - filepath: qtrgzhxclass.json
+      resp_keys: [ $.data.id, $.data.class_no, $.data.name ]
+      keys: [ create_id, create_class_no, create_name ]
+    - filepath: qtrczswclass.json
+      resp_keys: [ $.data.id, $.data.class_no, $.data.name ]
+      keys: [ create_id, create_class_no, create_name ]
+    - filepath: qtrgzswclass.json
+      resp_keys: [ $.data.id, $.data.class_no, $.data.name ]
+      keys: [ create_id, create_class_no, create_name ]
+  depends_on:
+    - online: false
+      type: response
+      case_id: tr1denglu.json
+      depend_key: [ token_tr1denglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: tr1denglu.json
+      depend_key: [ token_tr1denglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: tr1denglu.json
+      depend_key: [ token_tr1denglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: tr1denglu.json
+      depend_key: [ token_tr1denglu ]
+      replace_key: [ token ]
+  assert:
+    - [pytest.assume(200==req.status_code),
+       'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+       'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+       'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))']
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+        'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+        'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.json.subject_id::0$$$$ in jsonpath(req_json, "$.data.subject_id"))',
+        'pytest.assume($$$$req_param::$.json.grade_phase_id::0$$$$ in jsonpath(req_json, "$.data.grade_phase_id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+
+  jschema_validate:
+
+# 学生加入班级
+stujoinclass:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 03-【业务流程前置条件】-学生加入班级
+  description:
+    - 【业务流程前置条件1】学生账号加入-初中物理班级-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件2】学生账号加入-高中化学班级-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件3】学生账号加入-初中生物班级-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件4】学生账号加入-高中生物班级-结果成功（返回200，校验学科、学段正常）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/stu-join
+  request_param: &req_param2
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &joinclass
+      class_no: $create_class_no
+      subject_id: 1
+      stu_name: qtr同学czwl
+  request_params:
+      - <<: *req_param2
+      - <<: *req_param2
+        json:
+          <<: *joinclass
+          subject_id: 2
+          stu_name: qtr同学gzhx
+      - <<: *req_param2
+        json:
+          <<: *joinclass
+          subject_id: 3
+          stu_name: qtr同学czsw
+      - <<: *req_param2
+        json:
+          <<: *joinclass
+          subject_id: 3
+          stu_name: qtr同学gzsw
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrczwlclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ create_class_no ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrgzhxclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ create_class_no ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrczswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ create_class_no ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrgzswclass.json
+        depend_key: [ create_class_no ]
+        replace_key: [ create_class_no ]
+  assert:
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])']
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.json.stu_name::0$$$$" in jsonpath(req_json, "$.data.stu_name")[0])' ]
+
+  jschema_validate:
+
+# 更新班级名称
+classupdate:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 04-【业务流程前置条件】-更新班级名称
+  description:
+    - 【业务流程前置条件1】正常传参-更新初中物理-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【业务流程前置条件2】正常传参-更新高中化学-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【业务流程前置条件3】正常传参-更新初中生物-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+    - 【业务流程前置条件4】正常传参-更新高中生物-班级名称-结果成功（返回200，校验班级id、班级名称正常）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/update
+  request_param: &req_param3
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &classupdateparams
+      name: 更新初中物理班级
+      id: $id
+  request_params:
+    - <<: *req_param3
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中化学班级
+        id: $id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新初中生物班级
+        id: $id
+    - <<: *req_param3
+      json:
+        <<: *classupdateparams
+        name: 更新高中生物班级
+        id: $id
+
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrczwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrgzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrczswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrgzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+  assert:
+    - [ pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+    - [ pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+    - [ pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+    - [ pytest.assume(200==req.status_code),'pytest.assume($$$$req_param::$.json.id::0$$$$ in jsonpath(req_json, "$.data.id"))',
+        'pytest.assume("$$$$req_param::$.json.name::0$$$$" in jsonpath(req_json, "$.data.name"))' ]
+
+  jschema_validate:
+
+#获取资源id
+resourcelist:
+  run:
+  story: 05-【业务流程前置条件】-获取资源id
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件1】正常传参-获取初中物理的资源id-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件2】正常传参-获取高中化学的资源id-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件3】正常传参-获取初中生物的资源id-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件4】正常传参-获取高中生物的资源id-结果成功（返回200，校验学科、学段正常）
+  params_type: params
+  host: *v6console_test
+  path: /v1/resource/index
+  request_param: &req_param4
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &loginparams4
+      subjectId: 1
+      gradePhase: 2
+      versionId: 1
+      dataVersion: 1
+      per-page: 50
+      actionType: 100
+      title: "组装电路"
+#  请求参数
+  request_params:
+    - <<: *req_param4
+    - <<: *req_param4
+      params:
+        <<: *loginparams4
+        subjectId: 2
+        gradePhase: 3
+        title: '硝酸的性质'
+    - <<: *req_param4
+      params:
+        <<: *loginparams4
+        subjectId: 3
+        title: '植物呼吸作用'
+    - <<: *req_param4
+      params:
+        <<: *loginparams4
+        subjectId: 3
+        gradePhase: 3
+        title: '制作泡菜'
+  response:
+    - filepath: czwl_resource_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '组装电路')].id" ]
+        # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_resource_id ]
+    - filepath: gzhx_resource_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '硝酸的性质')].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_resource_id ]
+    - filepath: czsw_resource_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '植物呼吸作用')].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_resource_id ]
+    - filepath: gzsw_resource_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ "$.data[?(@.title == '制作泡菜')].id" ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_resource_id ]
+
+  depends_on: ~
+  assert:
+    #    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))',
+        'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))',
+        'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))',
+        'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume($$$$req_param::$.params.subjectId::0$$$$ in jsonpath(req_json,"$.data[:].subjectId"))',
+        'pytest.assume($$$$req_param::$.params.gradePhase::0$$$$ in jsonpath(req_json,"$.data[:].gradePhase"))' ]
+  jschema_validate:
+
+#发布评论
+createcomment:
+  run: false
+  story: 06-【业务流程前置条件】-发布评论
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【前置流程1】正常传参-正常发布初中物理的实验评论-结果成功（返回200，校验学科、学段正常）
+    - 【前置流程2】正常传参-正常发布高中化学的实验评论-结果成功（返回200，校验学科、学段正常）
+    - 【前置流程3】正常传参-正常发布初中生物的实验评论-结果成功（返回200，校验学科、学段正常）
+    - 【前置流程4】正常传参-正常发布高中生物的实验评论-结果成功（返回200，校验学科、学段正常）
+  params_type: json
+  host: *v6console_test
+  path: /v1/comment/release
+  request_param: &req_param5
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Content-Type: application/json
+      Authorization: Bearer $token
+    json: &loginjsons5
+      object_id: $czwl_resource_id  #组装电路 实验id
+      object_type: "wuli"
+      content: "这个初中物理精品资源真不错"
+      parent_id: 0
+#  请求参数
+  request_params:
+    - <<: *req_param5
+    - <<: *req_param5
+      json:
+        <<: *loginjsons5
+        object_id: $gzhx_resource_id
+        object_type: "huaxue"
+        content: "这个高中化学精品资源真不错"
+    - <<: *req_param5
+      json:
+        <<: *loginjsons5
+        object_id: $czsw_resource_id
+        object_type: "shengwu_cz"
+        content: "这个初中生物精品资源真不错"
+    - <<: *req_param5
+      json:
+        <<: *loginjsons5
+        object_id: $gzsw_resource_id
+        object_type: "shengwu_gz"
+        content: "这个高中生物精品资源真不错"
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwl_resource_id.json
+        depend_key: [ czwl_resource_id ]
+        replace_key: [ czwl_resource_id ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhx_resource_id.json
+        depend_key: [ gzhx_resource_id ]
+        replace_key: [ gzhx_resource_id ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czsw_resource_id.json
+        depend_key: [ czsw_resource_id ]
+        replace_key: [ czsw_resource_id ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzsw_resource_id.json
+        depend_key: [ gzsw_resource_id ]
+        replace_key: [ gzsw_resource_id ]
+
+  assert:
+#    一个case里的多重断言
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+
+  jschema_validate:
+
+#获取评论列表
+commentlist:
+  run: false
+  story: 07-【业务流程前置条件】-获取评论列表
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件1】正常传参-获取初中物理的实验评论id-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件2】正常传参-获取高中化学的实验评论id-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件3】正常传参-获取初中生物的实验评论id-结果成功（返回200，校验学科、学段正常）
+    - 【业务流程前置条件4】正常传参-获取高中生物的实验评论id-结果成功（返回200，校验学科、学段正常）
+  params_type: params
+  host: *v6console_test
+  path: /v1/comment/index
+  request_param: &req_param6
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+    params: &loginparams6
+      object_id: $czwl_resource_id     #组装电路 实验id
+      object_type: "wuli"
+  request_params:
+    - <<: *req_param6
+    - <<: *req_param6
+      params:
+        <<: *loginparams6
+        object_id: $gzhx_resource_id     #硝酸的性质 实验id
+        object_type: "huaxue"
+    - <<: *req_param6
+      params:
+        <<: *loginparams6
+        object_id: $czsw_resource_id     #三角龙 实验id
+        object_type: "shengwu_cz"
+    - <<: *req_param6
+      params:
+        <<: *loginparams6
+        object_id: $gzsw_resource_id     #制作泡菜 实验id
+        object_type: "shengwu_gz"
+  response:
+    - filepath: czwl_comment_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ '$.data[?("这个初中物理精品资源真不错" == @.content)].id' ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czwl_comment_id ]
+    - filepath: gzhx_comment_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ '$.data[?("这个高中化学精品资源真不错" == @.content)].id' ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzhx_comment_id ]
+    - filepath: czsw_comment_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ '$.data[?("这个初中生物精品资源真不错" == @.content)].id' ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ czsw_comment_id ]
+    - filepath: gzsw_comment_id.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ '$.data[?("这个高中生物精品资源真不错" == @.content)].id' ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ gzsw_comment_id ]
+
+  depends_on:
+    - online: false
+      type: response
+      case_id: czwl_resource_id.json
+      depend_key: [ czwl_resource_id ]
+      replace_key: [ czwl_resource_id ]
+    - online: false
+      type: response
+      case_id: gzhx_resource_id.json
+      depend_key: [ gzhx_resource_id ]
+      replace_key: [ gzhx_resource_id ]
+    - online: false
+      type: response
+      case_id: czsw_resource_id.json
+      depend_key: [ czsw_resource_id ]
+      replace_key: [ czsw_resource_id ]
+    - online: false
+      type: response
+      case_id: gzsw_resource_id.json
+      depend_key: [ gzsw_resource_id ]
+      replace_key: [ gzsw_resource_id ]
+
+  assert:
+#    一个case里的多重断言
+    - [pytest.assume(200==req.status_code),
+       'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))']
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.object_type::0$$$$" in jsonpath(req_json,"$.data[:].object_type"))' ]
+
+  jschema_validate:
+
+#08发布子评论
+createcommentson:
+  run: false
+  story: 08-【业务流程前置条件】-发布子评论
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【业务流程前置条件1】正常传参-能正常发布初中物理的子评论-结果成功（返回200）
+    - 【业务流程前置条件2】正常传参-能正常发布高中化学的子评论-结果成功（返回200）
+    - 【业务流程前置条件3】正常传参-能正常发布初中生物的子评论-结果成功（返回200）
+    - 【业务流程前置条件4】正常传参-能正常发布高中生物的子评论-结果成功（返回200）
+  params_type: json
+  host: *v6console_test
+  path: /v1/comment/release
+  request_param: &req_param7
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Content-Type: application/json
+      Authorization: Bearer $token
+    json: &loginjsons7
+      object_id: $czwl_resource_id  #组装电路 实验id
+      object_type: "wuli"
+      content: "这个初中物理精品资源真不错的子评论"
+      parent_id: $czwl_comment_id   #父评论的id
+#  请求参数
+  request_params:
+    - <<: *req_param7
+    - <<: *req_param7
+      json:
+        <<: *loginjsons7
+        object_id: $gzhx_resource_id
+        object_type: "huaxue"
+        content: "这个高中化学精品资源真不错的子评论"
+        parent_id: $gzhx_comment_id   #父评论的id
+    - <<: *req_param7
+      json:
+        <<: *loginjsons7
+        object_id: $czsw_resource_id  #组装电路 实验id
+        object_type: "shengwu_cz"
+        content: "这个初中生物精品资源真不错的子评论"
+        parent_id: $czsw_comment_id   #父评论的id
+    - <<: *req_param7
+      json:
+        <<: *loginjsons7
+        object_id: $gzsw_resource_id  #组装电路 实验id
+        object_type: "shengwu_gz"
+        content: "这个高中生物精品资源真不错的子评论"
+        parent_id: $gzsw_comment_id   #父评论的id
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czwl_resource_id.json
+        depend_key: [ czwl_resource_id ]
+        replace_key: [ czwl_resource_id ]
+      - online: false
+        type: response
+        case_id: czwl_comment_id.json
+        depend_key: [ czwl_comment_id ]
+        replace_key: [ czwl_comment_id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzhx_resource_id.json
+        depend_key: [ gzhx_resource_id ]
+        replace_key: [ gzhx_resource_id ]
+      - online: false
+        type: response
+        case_id: gzhx_comment_id.json
+        depend_key: [ gzhx_comment_id ]
+        replace_key: [ gzhx_comment_id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: czsw_resource_id.json
+        depend_key: [ czsw_resource_id ]
+        replace_key: [ czsw_resource_id ]
+      - online: false
+        type: response
+        case_id: czsw_comment_id.json
+        depend_key: [ czsw_comment_id ]
+        replace_key: [ czsw_comment_id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: gzsw_resource_id.json
+        depend_key: [ gzsw_resource_id ]
+        replace_key: [ gzsw_resource_id ]
+      - online: false
+        type: response
+        case_id: gzsw_comment_id.json
+        depend_key: [ gzsw_comment_id ]
+        replace_key: [ gzsw_comment_id ]
+
+
+  assert:
+#    一个case里的多重断言
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+    - [pytest.assume(200==req.status_code),'pytest.assume([] == jsonpath(req_json,"$.data")[0])']
+
+  jschema_validate:
+
+#09获取班级消息列表
+loginclassmsg:
+  run:
+  story: 09-获取消息列表-班级消息
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  description:
+    - 【流程1】正常传参-获取初中物理班级消息-结果成功（返回200）
+    - 【流程2】正常传参-获取高中化学班级消息-结果成功（返回200）
+    - 【流程3】正常传参-获取初中生物班级消息-结果成功（返回200）
+    - 【流程4】正常传参-获取高中生物班级消息-结果成功（返回200）
+    - 验证正常登录,学科传送异常，无法获取班级消息（返回400）
+    - 验证异常登录,学科传送正常，无法获取班级消息（返回401）
+    - 验证异常登录,学科传送异常，无法获取班级消息（返回401）
+    - 验证正常登录、学科传送正常，但查询类型为空，无法获取已读通知（返回400）
+    - 验证正常登录、学科传送异常，但查询类型为空，无法获取已读通知（返回400）
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+#  host: console-v6.noteach.com.cn
+  host: *v6console_test
+  path: /v1/msg/list
+  request_param: &req_param8
+    url: $url
+    method: get
+    headers:
+      Authorization: Bearer $token
+      User-Agent: *agent
+    params: &loginparams8
+      subject: wuli
+      tab: class_msg
+      page: 1
+      per-page: 100
+
+  #  请求参数
+  request_params:
+    - <<: *req_param8
+    - <<: *req_param8
+      params:
+        <<: *loginparams8
+        subject: huaxue
+    - <<: *req_param8
+      params:
+        <<: *loginparams8
+        subject: shengwu_cz
+    - <<: *req_param8
+      params:
+        <<: *loginparams8
+        subject: shengwu_gz
+    - <<: *req_param8
+      params:
+        <<: *loginparams8
+        subject: wul
+    - <<: *req_param8
+      headers:
+        Authorization:
+    - <<: *req_param8
+      headers:
+        Authorization:
+      params:
+        <<: *loginparams8
+        subject: wul
+    - <<: *req_param8
+      params:
+        <<: *loginparams8
+        tab:
+    - <<: *req_param8
+      params:
+        <<: *loginparams8
+        tab:
+        subject: wu
+  #  响应结果的处理
+  response:
+    - filepath: qtr_czwl_classmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_czwl_classmsg ]
+    - filepath: qtr_gzhx_classmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_gzhx_classmsg ]
+    - filepath: qtr_czsw_classmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_czsw_classmsg ]
+    - filepath: qtr_gzsw_classmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_gzsw_classmsg ]
+  #  数据依赖的处理
+  depends_on:
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    -
+    -
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))']
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [pytest.assume(400==req.status_code),
+       'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])']
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+
+  jschema_validate:
+    - &classmsg
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: qtr-classmsg_jschema.json
+#      是否为第一次。值默认为false(含空),其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *classmsg
+      first: false
+    - <<: *classmsg
+      first: false
+    - <<: *classmsg
+      first: false
+#10获取评论消息
+logincommentmsg:
+  run: false
+  story: 10-获取消息列表-评论消息
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  description:
+    - 【流程1】正常传参-获取初中物理评论消息-结果成功（返回200）
+    - 【流程2】正常传参-获取高中化学评论消息-结果成功（返回200）
+    - 【流程3】正常传参-获取初中生物评论消息-结果成功（返回200）
+    - 【流程4】正常传参-获取高中生物评论消息-结果成功（返回200）
+    - 验证正常登录,学科传送异常，无法获取评论消息（返回400）
+    - 验证异常登录,学科传送物理，无法获取评论消息（返回401）
+    - 验证异常登录,学科传送异常，无法获取评论消息（返回401）
+    - 验证正常登录、学科传送物理，但查询类型为空，无法获取已读通知（返回400）
+    - 验证正常登录、学科传送异常，但查询类型为空，无法获取已读通知（返回400）
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/msg/list
+  request_param: &req_param9
+    url: $url
+    method: get
+    headers:
+      Authorization: Bearer $token
+      User-Agent: *agent
+    params: &loginparams9
+      subject: wuli
+      tab: comment_msg
+      page: 1
+      per-page: 100
+
+  #  请求参数
+  request_params:
+    - <<: *req_param9
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        subject: huaxue
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        subject: shengwu_cz
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        subject: shengwu_gz
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        subject: wul
+    - <<: *req_param9
+      headers:
+        Authorization:
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        subject: wul
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        tab:
+    - <<: *req_param9
+      params:
+        <<: *loginparams9
+        tab:
+        subject: wul
+  #  响应结果的处理
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: qtr_czwl_commentmsg.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ id_qtr_czwl_commentmsg ]
+    - filepath: qtr_gzhx_commentmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_gzhx_commentmsg ]
+    - filepath: qtr_czsw_commentmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_czsw_commentmsg ]
+    - filepath: qtr_gzsw_commentmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_gzsw_commentmsg ]
+  #  数据依赖的处理
+  depends_on:
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    -
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+
+  jschema_validate:
+    - &commentmsg
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: qtr-commentmsg_jschema.json
+#      是否为第一次。值默认为false(含空),其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *commentmsg
+      first: false
+    - <<: *commentmsg
+      first: false
+    - <<: *commentmsg
+      first: false
+#11获取系统通知
+loginsystemmsg:
+  run: false
+  story: 11-获取消息列表-系统通知
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  description:
+    - 【流程1】正常传参-获取物理学科的系统通知-结果成功（返回200）
+    - 【流程1】正常传参-获取化学学科的系统通知-结果成功（返回200）
+    - 【流程1】正常传参-获取初中生物学科的系统通知-结果成功（返回200）
+    - 【流程1】正常传参-获取高中生物学科的系统通知-结果成功（返回200）
+    - 验证正常登录,学科传送异常，无法获取系统通知
+    - 验证异常登录,学科传送物理，无法获取系统通知
+    - 验证异常登录,学科传送异常，无法获取系统通知
+    - 验证正常登录、学科传送物理，但查询类型为空，无法获取已读通知
+    - 验证正常登录、学科传送异常，但查询类型为空，无法获取已读通知
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/msg/list
+  request_param: &req_param10
+    url: $url
+    method: get
+    headers:
+      Authorization: Bearer $token
+      User-Agent: *agent
+    params: &loginparams10
+      subject: wuli
+      tab: system_msg
+      page: 1
+      per-page: 100
+
+  #  请求参数
+  request_params:
+    - <<: *req_param10
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        subject: huaxue
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        subject: shengwu_cz
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        subject: shengwu_gz
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        subject: wul
+    - <<: *req_param10
+      headers:
+        Authorization:
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        subject: wul
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        tab:
+    - <<: *req_param10
+      params:
+        <<: *loginparams10
+        tab:
+        subjece: wul
+  #  响应结果的处理
+  response:
+    - filepath: qtr_czwl_systemmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_czwl_systemmsg ]
+    - filepath: qtr_gzhx_systemmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_gzhx_systemmsg ]
+    - filepath: qtr_czsw_systemmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_czsw_systemmsg ]
+    - filepath: qtr_gzsw_systemmsg.json
+      resp_keys: [ '$.data[?(0 == @.is_read)].id' ]
+      keys: [ id_qtr_gzsw_systemmsg ]
+  #  数据依赖的处理
+  depends_on:
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      # 想要获取的数据保存在哪个key下
+      depend_key: [ token_qtrdenglu ]
+      # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    -
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$req_param::$.params.subject::0$$$$" in jsonpath(req_json, "$.data[:].subject"))' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+
+  jschema_validate:
+    - &systemmsg
+      #      是否进行校验，默认值为true(含空)
+      validate: true
+      #      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+      #      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+      #      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: qtr-systemmsg_jschema.json
+      #      是否为第一次。值默认为false(含空),其逻辑规则如下：
+      #      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+      #      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+      #      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+      #      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *systemmsg
+      first: false
+    - <<: *systemmsg
+      first: false
+    - <<: *systemmsg
+      first: false
+
+# 12消息已读
+loginmsgread:
+  run:
+  story: 12-消息已读
+  module_flag: *v6console_moduleflag
+  #  case的描述/目的
+  description:
+    - 【流程1-1】验证-正常登录,学科传送物理-获取班级消息已读-结果成功（返回200）
+#    - 【流程1-2】验证-正常登录,学科传送物理-获取评论消息已读-结果成功（返回200）
+#    - 【流程1-3】验证-正常登录,学科传送物理-获取系统消息已读-结果成功（返回200）
+    - 【流程2-1】验证-正常登录,学科传送化学-获取班级消息已读-结果成功（返回200）
+#    - 【流程2-2】验证-正常登录,学科传送化学-获取评论消息已读-结果成功（返回200）
+#    - 【流程2-3】验证-正常登录,学科传送化学-获取系统消息已读-结果成功（返回200）
+    - 【流程3-1】验证-正常登录,学科传送初中生物-获取班级消息已读-结果成功（返回200）
+#    - 【流程3-2】验证-正常登录,学科传送初中生物-获取评论消息已读-结果成功（返回200）
+#    - 【流程3-3】验证-正常登录,学科传送初中生物-获取系统消息已读-结果成功（返回200）
+    - 【流程4-1】验证-正常登录,学科传送高中生物-获取班级消息已读-结果成功（返回200）
+#    - 【流程4-2】验证-正常登录,学科传送高中生物-获取评论消息已读-结果成功（返回200）
+#    - 【流程4-3】验证-正常登录,学科传送高中生物-获取系统消息已读-结果成功（返回200）
+    - 验证-正常登录,学科传送物理-一键已读所有班级消息-结果成功（返回200）
+    - 验证-正常登录,学科传送物理-一键已读所有评论通知-结果成功（返回200）
+    - 验证-正常登录,学科传送物理-一键已读所有系统消息-结果成功（返回200）
+    - 验证-正常登录,学科传送化学-一键已读所有班级消息-结果成功（返回200）
+    - 验证-正常登录,学科传送化学-一键已读所有评论通知-结果成功（返回200）
+    - 验证-正常登录,学科传送化学-一键已读所有系统消息-结果成功（返回200）
+    - 验证-正常登录,学科传送初中生物-一键已读所有班级消息-结果成功（返回200）
+    - 验证-正常登录,学科传送初中生物-一键已读所有评论通知-结果成功（返回200）
+    - 验证-正常登录,学科传送初中生物-一键已读所有系统消息-结果成功（返回200）
+    - 验证-正常登录,学科传送高中生物-一键已读所有班级消息-结果成功（返回200）
+    - 验证-正常登录,学科传送高中生物-一键已读所有评论通知-结果成功（返回200）
+    - 验证-正常登录,学科传送高中生物-一键已读所有系统消息-结果成功（返回200）
+    - 验证-正常登录,学科传送异常，无法获取班级消息
+#    - 验证-正常登录,学科传送异常，无法获取评论消息
+#    - 验证-正常登录,学科传送异常，无法获取系统消息
+    - 验证-正常登录、学科传送物理，但查询类型为空，无法获取已读通知
+    - 验证-正常登录、学科传送异常，但查询类型为空，无法获取已读通知
+  #  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/msg/msg-read
+  request_param: &req_param11
+    url: $url
+    method: post
+    headers:
+      Authorization: Bearer $token
+      User-Agent: *agent
+    json: &loginjsons11
+      id: $id
+#     已读消息类型 class_msg: 班级消息  comment_msg: 评论消息  system_msg: 系统消息
+      tab: class_msg
+      subject: wuli
+      subjectId: 1
+
+  #  请求参数
+  request_params:
+    - <<: *req_param11
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        tab: comment_msg
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        tab: system_msg
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        subject: huaxue
+        subjectId: 2
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        subject: huaxue
+#        subjectId: 2
+#        tab: comment_msg
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        subject: huaxue
+#        subjectId: 2
+#        tab: system_msg
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        subject: shengwu_cz
+        subjectId: 3
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        subject: shengwu_cz
+#        subjectId: 3
+#        tab: comment_msg
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        subject: shengwu_cz
+#        subjectId: 3
+#        tab: system_msg
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        subject: shengwu_gz
+        subjectId: 3
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        subject: shengwu_gz
+#        subjectId: 3
+#        tab: comment_msg
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        subject: shengwu_gz
+#        subjectId: 3
+#        tab: system_msg
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: comment_msg
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: system_msg
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        subject: huaxue
+        subjectId: 2
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: comment_msg
+        subject: huaxue
+        subjectId: 2
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: system_msg
+        subject: huaxue
+        subjectId: 2
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        subject: shengwu_cz
+        subjectId: 3
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: comment_msg
+        subject: shengwu_cz
+        subjectId: 3
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: system_msg
+        subject: shengwu_cz
+        subjectId: 3
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        subject: shengwu_gz
+        subjectId: 3
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: comment_msg
+        subject: shengwu_gz
+        subjectId: 3
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        id: 0
+        tab: system_msg
+        subject: shengwu_gz
+        subjectId: 3
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        subject: wul
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        tab: comment_msg
+#        subject: wul
+#    - <<: *req_param11
+#      json:
+#        <<: *loginjsons11
+#        tab: system_msg
+#        subject: wul
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        tab: ~
+    - <<: *req_param11
+      json:
+        <<: *loginjsons11
+        tab: ~
+        subject: wul
+
+  #  响应结果的处理
+  response: ~
+  #  数据依赖的处理
+  depends_on:
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        # 想要获取的数据保存在哪个key下
+        depend_key: [ token_qtrdenglu ]
+        # 想要替换的请求参数中，哪个$变量 ,与 $后面的变量名保持一致
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtr_czwl_classmsg.json
+        depend_key: [ id_qtr_czwl_classmsg ]
+        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_czwl_commentmsg.json
+#        depend_key: [ id_qtr_czwl_commentmsg ]
+#        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_czwl_systemmsg.json
+#        depend_key: [ id_qtr_czwl_systemmsg ]
+#        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtr_gzhx_classmsg.json
+        depend_key: [ id_qtr_gzhx_classmsg ]
+        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_gzhx_commentmsg.json
+#        depend_key: [ id_qtr_gzhx_commentmsg ]
+#        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_gzhx_systemmsg.json
+#        depend_key: [ id_qtr_gzhx_systemmsg ]
+#        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtr_czsw_classmsg.json
+        depend_key: [ id_qtr_czsw_classmsg ]
+        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_czsw_commentmsg.json
+#        depend_key: [ id_qtr_czsw_commentmsg ]
+#        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_czsw_systemmsg.json
+#        depend_key: [ id_qtr_czsw_systemmsg ]
+#        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtr_gzsw_classmsg.json
+        depend_key: [ id_qtr_gzsw_classmsg ]
+        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_gzsw_commentmsg.json
+#        depend_key: [ id_qtr_gzsw_commentmsg ]
+#        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_gzsw_systemmsg.json
+#        depend_key: [ id_qtr_gzsw_systemmsg ]
+#        replace_key: [ id ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - - online: false
+        type: response
+        case_id: qtrdenglu.json
+        depend_key: [ token_qtrdenglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtr_czwl_classmsg.json
+        depend_key: [ id_qtr_czwl_classmsg ]
+        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_czwl_commentmsg.json
+#        depend_key: [ id_qtr_czwl_commentmsg ]
+#        replace_key: [ id ]
+#    - - online: false
+#        type: response
+#        case_id: qtrdenglu.json
+#        depend_key: [ token_qtrdenglu ]
+#        replace_key: [ token ]
+#      - online: false
+#        type: response
+#        case_id: qtr_czwl_systemmsg.json
+#        depend_key: [ id_qtr_czwl_systemmsg ]
+#        replace_key: [ id ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+#    - [ pytest.assume(200==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+#    - [ pytest.assume(400==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+#    - [ pytest.assume(400==req.status_code),
+#        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail2$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+
+  jschema_validate:
+    - &msgread
+      #      是否进行校验，默认值为true(含空)
+      validate: true
+      #      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+      #      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+      #      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: qtr-msgread_jschema.json
+      #      是否为第一次。值默认为false(含空),其逻辑规则如下：
+      #      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+      #      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+      #      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+      #      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+    - <<: *msgread
+      first: false
+
+# 13解散班级
+classrelease:
+  run:
+  module_flag: *v6console_moduleflag
+  story: 13-【业务后置流程】-解散班级
+  description:
+    - 【业务后置流程1】将初中物理-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【业务后置流程2】将高中化学-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【业务后置流程3】将初中生物-将之前操作的班级解散-结果成功（返回200，校验message正常）
+    - 【业务后置流程4】将高中生物-将之前操作的班级解散-结果成功（返回200，校验message正常）
+  params_type: json
+  host: *v6console_test
+  path: /v1/class/release
+  request_param: &req_param12
+    url: $url
+    method: post
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+      Content-Type: application/json
+    json: &loginjsons12
+      id: $id
+  request_params:
+    - <<: *req_param12
+    - <<: *req_param12
+      json:
+        <<: *loginjsons12
+        id: $id
+    - <<: *req_param12
+      json:
+        <<: *loginjsons12
+        id: $id
+    - <<: *req_param12
+      json:
+        <<: *loginjsons12
+        id: $id
+  response: ~
+  depends_on:
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrczwlclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrgzhxclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrczswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+    - - online: false
+        type: response
+        case_id: tr1denglu.json
+        depend_key: [ token_tr1denglu ]
+        replace_key: [ token ]
+      - online: false
+        type: response
+        case_id: qtrgzswclass.json
+        depend_key: [ create_id ]
+        replace_key: [ id ]
+  assert:
+    - [ pytest.assume(200==req.status_code),
+          'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+
+  jschema_validate:
+
+# 14获取未读消息
+loginunreadmsg:
+  run:
+  story: 14-获取未读消息数
+  module_flag: *v6console_moduleflag
+#  case的描述/目的
+  description:
+    - 【流程1】-验证登录成功,学科传送物理-成功获取未读消息数
+    - 【流程2】-验证登录成功,学科传送化学-成功获取未读消息数
+    - 【流程3】-验证登录成功,学科传送初中生物-成功获取未读消息数
+    - 【流程4】-验证登录成功,学科传送高中生物-成功获取未读消息数
+    - 验证登录成功,学科传送异常-未成功获取未读消息数
+    - 验证异常登录,学科传送正常-未成功获取未读消息数
+    - 验证异常登录,学科传送异常-未成功获取未读消息数
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v6console_test
+  path: /v1/msg/get-no-read-cnt
+  request_param: &req_param13
+    url: $url
+    method: get
+    headers:
+      Authorization:  Bearer $token
+      User-Agent: *agent
+    params: &loginparams13
+      subject: wuli
+#  请求参数
+  request_params:
+    - <<: *req_param13
+    - <<: *req_param13
+      params:
+        <<: *loginparams13
+        subject: huaxue
+    - <<: *req_param13
+      params:
+        <<: *loginparams13
+        subject: shengwu_cz
+    - <<: *req_param13
+      params:
+        <<: *loginparams13
+        subject: shengwu_gz
+    - <<: *req_param13
+      params:
+        <<: *loginparams13
+        subject: wul
+    - <<: *req_param13
+    - <<: *req_param13
+      params:
+        <<: *loginparams13
+        subject: wul
+
+#  响应结果的处理
+  response: ~
+#  数据依赖的处理
+  depends_on:
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+    -
+    - online: false
+      type: response
+      case_id: qtrdenglu.json
+      depend_key: [ token_qtrdenglu ]
+      replace_key: [ token ]
+#  断言
+  assert:
+#    一个case里的多重断言
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(200==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::message$$$$" in jsonpath(req_json,"$.message")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(401==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail3$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+    - [ pytest.assume(400==req.status_code),
+        'pytest.assume("$$$$json_file::qtrmsg.json::manual_detail1$$$$" in jsonpath(req_json,"$.data.manual_detail")[0])' ]
+
+  jschema_validate:

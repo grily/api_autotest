@@ -1,0 +1,145 @@
+author: guozhiguo
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: 样例-1-登录模块
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+login:
+  run: false
+  story: 1-登录
+  #  所属的功能模块组，不同的模块组对应的域名不一样
+  #  module_flag的值会作为对应的host域名值所对应的key的前缀
+  #  如当前的module_flag为 v5login,那么必然存在
+  #  v5login_testhost、v5login_relhost、v5login_prodhost 这3个key
+  #  且这3个key的值对应着测试环境、灰度环境、生产环境的host域名。
+  module_flag: *v5login_moduleflag
+#  case的描述/目的
+  description:
+    - 验证正常登录
+    - 验证错误的账号密码能否登录成功
+#  设置request_param 下的params 是params 还是data
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/username
+  request_param: &req_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &loginparams
+      username: 13718620015
+      password: admin123
+      platform: web
+      clientinfo: ~
+      pid: &pid CZWlTE4lVgz9
+#  请求参数
+  request_params:
+    - <<: *req_param
+    - <<: *req_param
+      params:
+        <<: *loginparams
+        username: 13718620016
+#  响应结果的处理
+  response:
+#    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: online
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token_0015 ]
+    -
+#  数据依赖的处理
+  depends_on: ~
+#  断言
+  assert:
+#    一个case里的多重断言
+    - [pytest.assume(200==req.status_code),
+       "pytest.assume('奥林匹克化学学校' in (jsonpath(req_json,'$.schoolname')))"]
+#    - pytest.assume('奥林匹克化学学校' in (jsonpath(req_json,'$.schoolname')))
+    - pytest.assume(400==req.status_code)
+  jschema_validate:
+    - &demo1
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: 0015_jschema.json
+#      是否为第一次。值默认为false(含空),其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+    -
+
+# 检查登录状态
+checklogin:
+  run: false
+  story: 2-校验登录
+  module_flag: *v5login_moduleflag
+  description: ["校验登录状态"]
+  params_type: params
+  host: *v5login_test
+  path: /passport/v5/login/check
+  request_param: &req_param1
+    url: $url
+    method: get
+    headers:
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params:
+      pid: *pid
+  request_params:
+    - <<: *req_param1
+  response: ~
+  depends_on:
+#    online: 默认为true，当炎False时，表示要读取文件。online 使用 getattr来获取相应的值。
+#    当使用在线模式时，case_id 为空，此时的depend_key表示是哪个key
+#    当online为False时，depned_key的值为jsonpath表达式。
+#    当type为response时，此时的case_id的值为json文件在response_data目录下的相对路径名称,如0018.json
+#    当type为request时，case_id的值为具体的为所依赖的case所在的yml文件,如: test_demo.yml::login
+#    目前不考虑request类型的依赖,因为在同个yml文件中可以进行数据引用。
+    - online: true
+      type: response
+      case_id:
+      depend_key: [ auth_token_0015 ]
+      replace_key: [token]
+  assert:
+    - pytest.assume(200==req.status_code)
+  jschema_validate:
+    -
+#      是否进行校验，默认值为true(含空)
+      validate: true
+#      要校验的jsonschema所在位置,默认值为local(loc),其值为 local、mysql、redis 该key为扩展字段,暂不启用
+      filelocation: local
+#      当为local时，则填写json文件在response_data目录下的文件名称;若为mysql或redis，则写该jsonschema对应的json字符串值所对应的key
+#      暂不考虑非local值的情况，mysql和redis留到日后扩展。
+      filepath: 0015_jschema-check.json
+#      是否为第一次。值默认为false(含空),其逻辑规则如下：
+#      当validate为true或空时且first为true时,表示首先运行该接口，当不存在对应的json文件或有json文件，但是读取的内容为空，则表示需要存入
+#      jsonscheam文件。若是本地有json文件且读取内容不为空(不进行内容校验),则不会进行任何的jsonschema内容变更,此时会直接进行校验。
+#      当first为false时,若没有相对的jsonschema内容，则直接报错，不再进行校验。
+      first: false
+#      是否更新，默认值为false(含为空时)，表示是否需要对已保存的jsonschema的内容进行更新。该字段仅对filelocation的值为mysql或redis开放
+      update: false
+

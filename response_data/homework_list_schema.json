@@ -1,0 +1,187 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "class_id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "stu_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "created_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "updated_by": {
+            "type": "integer"
+          },
+          "updated_at": {
+            "type": "integer"
+          },
+          "auto_update_at": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "usericon": {
+            "type": "string"
+          },
+          "task_post_info": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "map_id": {
+                "type": "integer"
+              },
+              "task_id": {
+                "type": "integer"
+              },
+              "class_id": {
+                "type": "integer"
+              },
+              "created_by": {
+                "type": "integer"
+              },
+              "created_at": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "class_id",
+              "created_at",
+              "created_by",
+              "id",
+              "map_id",
+              "task_id"
+            ]
+          },
+          "teacher_read_over_at": {
+            "type": "integer"
+          },
+          "correct_rate": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "auto_update_at",
+          "class_id",
+          "correct_rate",
+          "created_at",
+          "created_by",
+          "id",
+          "nickname",
+          "status",
+          "stu_name",
+          "task_post_info",
+          "teacher_read_over_at",
+          "updated_at",
+          "updated_by",
+          "user_id",
+          "usericon",
+          "username"
+        ]
+      }
+    },
+    "_links": {
+      "type": "object",
+      "properties": {
+        "self": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        },
+        "first": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        },
+        "last": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        }
+      },
+      "required": [
+        "first",
+        "last",
+        "self"
+      ]
+    },
+    "_meta": {
+      "type": "object",
+      "properties": {
+        "totalCount": {
+          "type": "integer"
+        },
+        "pageCount": {
+          "type": "integer"
+        },
+        "currentPage": {
+          "type": "integer"
+        },
+        "perPage": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "currentPage",
+        "pageCount",
+        "perPage",
+        "totalCount"
+      ]
+    }
+  },
+  "required": [
+    "_links",
+    "_meta",
+    "code",
+    "data",
+    "message"
+  ]
+}

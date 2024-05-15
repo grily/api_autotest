@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "object_id": {
+            "type": "integer"
+          },
+          "object_type": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "likes_count": {
+            "type": "integer"
+          },
+          "content": {
+            "type": ["string","integer"]
+          },
+          "status": {
+            "type": "integer"
+          },
+          "created_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "updated_by": {
+            "type": "integer"
+          },
+          "updated_at": {
+            "type": "integer"
+          },
+          "auto_update_at": {
+            "type": "string"
+          },
+          "likes": {
+            "type": "null"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "object_id": {
+                  "type": "integer"
+                },
+                "object_type": {
+                  "type": "string"
+                },
+                "parent_id": {
+                  "type": "integer"
+                },
+                "count": {
+                  "type": "integer"
+                },
+                "likes_count": {
+                  "type": "integer"
+                },
+                "content": {
+                  "type": ["string","integer"]
+                },
+                "status": {
+                  "type": "integer"
+                },
+                "created_by": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "integer"
+                },
+                "updated_by": {
+                  "type": "integer"
+                },
+                "updated_at": {
+                  "type": "integer"
+                },
+                "auto_update_at": {
+                  "type": "string"
+                },
+                "likes": {
+                  "type": "null"
+                },
+                "user": {
+                  "type": "object",
+                  "properties": {
+                    "userid": {
+                      "type": "integer"
+                    },
+                    "username": {
+                      "type": ["string","integer"]
+                    },
+                    "nickname": {
+                      "type": "string"
+                    },
+                    "usericon": {
+                      "type": ["string","null"]
+                    }
+                  },
+                  "required": [
+                    "nickname",
+                    "usericon",
+                    "userid",
+                    "username"
+                  ]
+                }
+              },
+              "required": [
+                "auto_update_at",
+                "content",
+                "count",
+                "created_at",
+                "created_by",
+                "id",
+                "likes",
+                "likes_count",
+                "object_id",
+                "object_type",
+                "parent_id",
+                "status",
+                "updated_at",
+                "updated_by",
+                "user"
+              ]
+            }
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "userid": {
+                "type": "integer"
+              },
+              "username": {
+                "type": ["string","integer"]
+              },
+              "nickname": {
+                "type": "string"
+              },
+              "usericon": {
+                "type": ["string","null"]
+              }
+            },
+            "required": [
+              "nickname",
+              "usericon",
+              "userid",
+              "username"
+            ]
+          }
+        },
+        "required": [
+          "auto_update_at",
+          "children",
+          "content",
+          "count",
+          "created_at",
+          "created_by",
+          "id",
+          "likes",
+          "likes_count",
+          "object_id",
+          "object_type",
+          "parent_id",
+          "status",
+          "updated_at",
+          "updated_by",
+          "user"
+        ]
+      }
+    },
+    "_extra": {
+      "type": "object",
+      "properties": {
+        "top_parent_id": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "top_parent_id",
+        "total"
+      ]
+    }
+  },
+  "required": [
+    "_extra",
+    "code",
+    "data",
+    "message"
+  ]
+}

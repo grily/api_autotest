@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array"
+    },
+    "_extra": {
+      "type": "object",
+      "properties": {
+        "top_parent_id": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "top_parent_id",
+        "total"
+      ]
+    }
+  },
+  "required": [
+    "_extra",
+    "code",
+    "data",
+    "message"
+  ]
+}

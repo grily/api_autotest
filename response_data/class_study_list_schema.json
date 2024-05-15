@@ -1,0 +1,211 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "class_id": {
+            "type": "integer"
+          },
+          "task_id": {
+            "type": "integer"
+          },
+          "post_num": {
+            "type": "integer"
+          },
+          "open_book": {
+            "type": "integer"
+          },
+          "started_at": {
+            "type": "integer"
+          },
+          "expired_at": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "task_post_id": {
+            "type": "integer"
+          },
+          "post_correct_rate": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "question_num": {
+            "type": "integer"
+          },
+          "map_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "class_name": {
+            "type": "string"
+          },
+          "class_no": {
+            "type": "integer"
+          },
+          "class_user_count": {
+            "type": "string"
+          },
+          "class_teacher_userid": {
+            "type": "integer"
+          },
+          "class_teacher_username": {
+            "type": "string"
+          },
+          "class_teacher_nickname": {
+            "type": "string"
+          },
+          "class_teacher_usericon": {
+            "type": ["null","string"]
+          },
+          "class_teacher_gender": {
+            "type": "integer"
+          },
+          "subject_id": {
+            "type": "integer"
+          },
+          "grade_phase_id": {
+            "type": "integer"
+          },
+          "class_task_status": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "class_id",
+          "class_name",
+          "class_no",
+          "class_task_status",
+          "class_teacher_gender",
+          "class_teacher_nickname",
+          "class_teacher_usericon",
+          "class_teacher_userid",
+          "class_teacher_username",
+          "class_user_count",
+          "created_at",
+          "expired_at",
+          "grade_phase_id",
+          "id",
+          "map_id",
+          "open_book",
+          "post_correct_rate",
+          "post_num",
+          "question_num",
+          "started_at",
+          "status",
+          "subject_id",
+          "task_id",
+          "task_post_id",
+          "title",
+          "version"
+        ]
+      }
+    },
+    "_links": {
+      "type": "object",
+      "properties": {
+        "self": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        },
+        "first": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        },
+        "last": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        }
+      },
+      "required": [
+        "first",
+        "last",
+        "self"
+      ]
+    },
+    "_meta": {
+      "type": "object",
+      "properties": {
+        "totalCount": {
+          "type": "integer"
+        },
+        "pageCount": {
+          "type": "integer"
+        },
+        "currentPage": {
+          "type": "integer"
+        },
+        "perPage": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "currentPage",
+        "pageCount",
+        "perPage",
+        "totalCount"
+      ]
+    },
+    "_extra": {
+      "type": "object",
+      "properties": {
+        "class_user_count": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "class_user_count"
+      ]
+    }
+  },
+  "required": [
+    "_extra",
+    "_links",
+    "_meta",
+    "code",
+    "data",
+    "message"
+  ]
+}

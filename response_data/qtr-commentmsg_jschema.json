@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "integer"
+          },
+          "subtype": {
+            "type": "integer"
+          },
+          "object_id": {
+            "type": "integer"
+          },
+          "created_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "object",
+            "properties": {
+              "comment_id": {
+                "type": "integer"
+              },
+              "experiment_id": {
+                "type": "integer"
+              },
+              "content": {
+                "type": "string"
+              },
+              "grade_phase_id": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "comment_id",
+              "content",
+              "experiment_id",
+              "grade_phase_id"
+            ]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "display_content": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "usericon": {
+            "type": "string"
+          },
+          "grade_phase_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content",
+          "created_at",
+          "created_by",
+          "display_content",
+          "grade_phase_id",
+          "id",
+          "is_read",
+          "object_id",
+          "subject",
+          "subtype",
+          "title",
+          "type",
+          "user_id",
+          "usericon",
+          "username"
+        ]
+      }
+    },
+    "_links": {
+      "type": "object",
+      "properties": {
+        "self": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        },
+        "first": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        },
+        "last": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "href"
+          ]
+        }
+      },
+      "required": [
+        "first",
+        "last",
+        "self"
+      ]
+    },
+    "_meta": {
+      "type": "object",
+      "properties": {
+        "totalCount": {
+          "type": "integer"
+        },
+        "pageCount": {
+          "type": "integer"
+        },
+        "currentPage": {
+          "type": "integer"
+        },
+        "perPage": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "currentPage",
+        "pageCount",
+        "perPage",
+        "totalCount"
+      ]
+    }
+  },
+  "required": [
+    "_links",
+    "_meta",
+    "code",
+    "data",
+    "message"
+  ]
+}

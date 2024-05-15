@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "integer"
+    },
+    "message": {
+      "type": "string"
+    },
+    "data": {
+      "type": "array"
+    },
+    "_extra": {
+      "type": "object",
+      "properties": {
+        "realTotalCount": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "realTotalCount"
+      ]
+    }
+  },
+  "required": [
+    "_extra",
+    "code",
+    "data",
+    "message"
+  ]
+}
