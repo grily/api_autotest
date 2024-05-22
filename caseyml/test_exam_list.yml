@@ -1,0 +1,285 @@
+author: liruige
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: app内的实验测评
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+nobook_moduleflag: &nobook_moduleflag nobook
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6-dev.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+nobook_prodhost: &nobook_prod www.nobook.com
+
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+
+#teacher_username: &teacher_username 18010151728
+stu_username: &stu_username 2w86h574
+stu_password: &stu_password 51143lrg
+#使用&定义变量 stu_username  使用*stu_username可使用变量  <<表示合并到当前数据
+
+# 登录
+appLogin:
+  run:
+  story: 登录
+  #  case的描述/目的
+  module_flag: *nobook_moduleflag
+  description: app登录
+  params_type: data
+  host: *nobook_prod
+  path: /passport/v5/login/username
+  request_param: &login_param
+    url: $url
+    method: post
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params:
+      pid: CZWlXSDlVgz9,GZWLXSDXfD9W,CZHXXSDHTa75,GZHXXSDIClkO,CZSWXSDlVCZ9,GZSWXSDXfG9W,XXKXXSDHTE75
+      platform: student_app
+      username: *stu_username
+      password: *stu_password
+      bindphone: no
+  request_params:
+    - <<: *login_param
+  #  响应结果的处理
+  #  要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+  response:
+    #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+    - filepath: app_lrg_login.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys: [ $.auth_token ]
+      # 响应结果提示的字段值在保存时对应的key
+      keys: [ auth_token ]
+
+  depends_on: ~
+  #  断言
+  assert:
+    - - pytest.assume(200 == response.status_code)
+      - pytest.assume('liruige' in jsonpath(resp_json, "$.nickname"))
+  jschema_validate:
+    - validate: true
+      filelocation: local
+      filepath: app_login_jschema.json
+      first: false
+      update: false
+
+userExamList:
+  run:
+  story: app内的实验测评-我的实验测评列表
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【初中物理】-初中物理-我的实验测评列表
+    - 【初中化学】-初中化学-我的实验测评列表
+
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v6console_prod
+  path: /v1/exam/user-exam-list
+  request_param: &userexamlist_req_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params: &userexamlist_req_params
+      subject_id: 1
+  # 请求参数
+  request_params:
+    - <<: *userexamlist_req_param
+    - <<: *userexamlist_req_param
+      params:
+        <<: *userexamlist_req_params
+        subject_id: 2
+
+  #  响应结果的处理
+  response:
+    #    响应数据提取 保存的文件名称
+    - filepath: user_exam_id_wl.json
+      # 提取的内容 可以是单个 可以是多个
+      resp_keys:
+        - $.data[0].latest_score.latest_exam_id
+        - $.data[0].id
+      # 以字典的形式保存 保存时的key
+      keys: [ latest_exam_id, id ]
+    #    保存我的实验中的第一个实验的latest_exam_id 和 id
+    - filepath: user_exam_id_hx.json
+      # 要提取响应结果的哪些值，这些要使用jsonpath表达式。
+      resp_keys:
+        - $.data[0].latest_score.latest_exam_id
+        - $.data[0].id
+      # 在文件中保存的key
+      keys: [ latest_exam_id, id ]
+
+  userlogin: &userlogin
+    online: false
+    type: response
+    case_id: app_lrg_login.json
+    depend_key: [ auth_token ]
+    replace_key: [ token ]
+  depends_on:
+    - <<: *userlogin
+    - <<: *userlogin
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - &userexamlist_assert
+      - pytest.assume(200 == response.status_code)
+      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
+      - pytest.assume(1 <= len(jsonpath(resp_json, "$.data['*']")))
+    - *userexamlist_assert
+
+  jschema_validate:
+    - &jschema_userexamlist
+      validate: true
+      filelocation: local
+      filepath: app_userexamlist.json
+      first: false
+      update: false
+    - <<: *jschema_userexamlist
+      first: false
+
+
+comprehensiveStatistics:
+  run:
+  story: app内的实验测评-点击我的实验测评列表中的第1个-历史趋势接口
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【初中物理】-初中物理-我的实验测评列表中的第1个-历史趋势接口
+    - 【初中化学】-初中化学-我的实验测评列表中的第1个-历史趋势接口
+
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v6console_prod
+  path: /v1/exam/comprehensive-statistics
+  request_param: &comprehensive_req_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params: &comprehensive_req_params
+      subject_id: 1
+      id: $id
+  # 请求参数
+  request_params:
+    - <<: *comprehensive_req_param
+    - <<: *comprehensive_req_param
+      params:
+        <<: *comprehensive_req_params
+        subject_id: 2
+
+  #  响应结果的处理
+  response: ~
+
+  exam_id: &exam_id
+    online: false
+    type: response
+    case_id: user_exam_id_wl.json
+    depend_key: [ id ]
+    replace_key: [ id ]
+  depends_on:
+    #    依赖login登录的token 和 userExamList我的测评实验列表的 id
+    - - <<: *userlogin
+      - <<: *exam_id
+    - - <<: *userlogin
+      - <<: *exam_id
+        case_id: user_exam_id_hx.json
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - &comprehensive_assert
+      - pytest.assume(200 == response.status_code)
+      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
+    - *comprehensive_assert
+
+  jschema_validate:
+    - &jschema_comprehensive
+      validate: true
+      filelocation: local
+      filepath: app_comprehensive.json
+      first: false
+      update: false
+    - <<: *jschema_comprehensive
+      first: false
+
+singleStatistic:
+  run:
+  story: app内的实验测评-点击我的实验测评列表中的第1个-单次得分
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【初中物理】-初中物理-我的实验测评列表中的第1个-单次得分
+    - 【初中化学】-初中化学-我的实验测评列表中的第1个-单次得分
+
+  #  设置request_param 下的params 是params 还是data
+  params_typedata:
+  host: *v6console_prod
+  path: /v1/exam/single-statistic
+  request_param: &singleStatistic_req_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+      Authorization: Bearer $token
+    params: &singleStatistic_req_params
+      subject_id: 1
+      exam_id: $exam_id
+  # 请求参数
+  request_params:
+    - <<: *singleStatistic_req_param
+    - <<: *singleStatistic_req_param
+      params:
+        <<: *singleStatistic_req_params
+        subject_id: 2
+
+  #  响应结果的处理
+  response: ~
+
+  latest_exam_id: &latest_exam_id
+    online: false
+    type: response
+    case_id: user_exam_id_wl.json
+    depend_key: [ latest_exam_id ]
+    replace_key: [ latest_exam_id ]
+  depends_on:
+    #    依赖login登录的token 和 userExamList我的测评实验列表的 id
+    - - <<: *userlogin
+      - <<: *latest_exam_id
+    - - <<: *userlogin
+      - <<: *latest_exam_id
+        case_id: user_exam_id_hx.json
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - &singleStatistic_assert
+      - pytest.assume(200 == response.status_code)
+      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
+    - *singleStatistic_assert
+
+  jschema_validate:
+    - &jschema_singleStatistic
+      validate: true
+      filelocation: local
+      filepath: app_singleStatistic.json
+      first: true
+      update: false
+    - <<: *jschema_singleStatistic
+      first: false

@@ -12,7 +12,8 @@ from common.api_all_pub_pkg import *
 from common.step_msg import step_msg
 from common.handle_depend_data import handle_depend_data
 from common.handle_response_data import handle_response_data
-from common.handle_assert_exp import handle_assert_exp,handle_assert
+# from common.handle_assert_exp import handle_assert_exp,handle_assert
+from common.handle_assert import handle_assert_exp
 from common.save_log import logger
 from common.jsonschema_validate import jschema_validate
 from copy import copy
@@ -122,7 +123,7 @@ class ApiBase():
         with allure.step(msg):
             pass
 
-        # ********************* 第五步 ******************************
+        # ********************* 第五步 jsonschema 校验******************************
         msg = "第五步: jsonschema 校验."
         validate = jschema_validate(self.__jschema,req.json())
         report_msg = ""
@@ -168,22 +169,14 @@ class ApiBase():
 
         pytest.assume(jschema_flag<=2)
 
-        # ********************* 第六步 ******************************
-        # exp_str = handle_assert_exp(req,self.__asert)
-        exp_str = handle_assert_exp(req, self.__asert, req_params)
-        # msg=f"第六步：处理断言. 原始表达式为: {self.__asert} ; 处理后的表达式为: {exp_str}"
-        # step_msg(msg)
+        # ********************* 第六步 处理断言******************************
         msg = "第六步：处理断言."
+        step_msg(msg)
         with allure.step(msg):
             allure.attach(body=simplejson.dumps(self.__asert, ensure_ascii=False, encoding='utf-8', indent=2),
-                          name="原始表达式",
+                          name="断言表达式",
                           attachment_type=allure.attachment_type.JSON)
-
-            allure.attach(body=simplejson.dumps(exp_str, ensure_ascii=False, encoding='utf-8', indent=2),
-                          name="处理后的表达式",
-                          attachment_type=allure.attachment_type.JSON)
-        # handle_assert(req,self.__asert)
-        handle_assert(req, exp_str)
+        handle_assert_exp(req, self.__asert)
 
     def run_case_havelog(self):
         ''''''
@@ -282,5 +275,5 @@ class ApiBase():
         step_msg(msg)
         logmsg = f"{__log_fmt}{msg}"
         logger.info(logmsg)
-        handle_assert(req, self.__asert)
+        handle_assert_exp(req, self.__asert)
 

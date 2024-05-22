@@ -11,7 +11,7 @@ import simplejson
 from common.online_data import OnlineData
 from common.get_json_filepath import get_json_filepath
 
-def handle_response_data(response_yml_data:list,response_json_data:dict,online_data:object=None)->None:
+def handle_response_data(response_yml_data: list, response_json_data: dict, online_data: object = None) -> None:
     '''
     处理响应结果。需要传入case 对应的yml文件中的response模块下的数据、request的请求响应json结果、config.yml 数据 \n
     :param response_yml_data: case对应的yml文件中的response模块下的数据
@@ -28,7 +28,12 @@ def handle_response_data(response_yml_data:list,response_json_data:dict,online_d
         #  获取filepath的值。
         fp = resp_yml['filepath']
         # 获取resp_keys 的值，即要提取的响应结果对应的哪些key值。为list
-        save_data_list = [jsonpath(resp_json, item)[0] for item in resp_yml['resp_keys']]
+        # save_data_list = [jsonpath(resp_json, item)[0] for item in resp_yml['resp_keys']]
+        save_data_list = []
+        for item in resp_yml['resp_keys']:
+            it = jsonpath(resp_json, item)
+            if it and len(it) > 0:
+                save_data_list.append(it[0])
         # 响应的结果要保存在json文件中的哪些key下。
         save_key = [item for item in resp_yml['keys']]
 

@@ -1,0 +1,174 @@
+author: liruige
+procotol: &procotol https
+useragent: &agent Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36
+feature: app内的实验模板资源列表
+# 功能模块标识
+v5login_moduleflag: &v5login_moduleflag v5login
+v6console_moduleflag: &v6console_moduleflag v6console
+
+# v5功能模块的域名
+# 测试环境域名
+v5login_testhost: &v5login_test storage.noteach.com.cn
+# 灰度环境域名
+v5login_relhost: &v5login_rel storage-backend-dev.nobook.com
+# 生产环境域名
+v5login_prodhost: &v5login_prod storage-backend.nobook.com
+# v6功能模块的域名
+# 测试环境域名
+v6console_testhost: &v6console_test console-v6.noteach.com.cn
+# 灰度环境域名
+v6console_relhost: &v6console_rel console-v6-dev.nobook.com
+# 生产环境域名
+v6console_prodhost: &v6console_prod console-v6.nobook.com
+
+
+czwl_pid_num: &czwl_pid CZWlTE4lVgz9
+
+#teacher_username: &teacher_username 18010151728
+stu_username: &stu_username 2w86h574
+stu_password: &stu_password 51143lrg
+#使用&定义变量 stu_username  使用*stu_username可使用变量  <<表示合并到当前数据
+
+# 该接口不依赖于登录
+# 实验模板资源列表
+resourceAll:
+  run:
+  story: 01-【app】-实验模板资源列表
+  #  case的描述/目的
+  module_flag: *v6console_moduleflag
+  description:
+    - 【初中物理】-初中物理-电与磁实验模板列表
+    - 【初中物理】-初中物理-家庭电路实验模板列表
+    - 【初中物理】-初中物理-近代物理实验模板列表
+    - 【高中物理】-高中物理-光学实验模板列表
+    - 【高中物理】-高中物理-热学实验模板列表
+    - 【高中物理】-高中物理-力学实验模板列表
+    - 【初中化学】-初中化学-无机化学实验模板列表
+    - 【高中化学】-高中化学-无机化学实验模板列表
+    - 【高中化学】-高中化学-有机化学实验模板列表
+    - 【高中化学】-高中化学-电化学实验模板列表
+
+  #  设置request_param 下的params 是params 还是data
+  params_type: data
+  host: *v6console_prod
+  path: /v1/resource/all
+  request_param: &resourceall_req_param
+    url: $url
+    method: get
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+      User-Agent: *agent
+    params: &resourceall_req_params
+      subjectId: 1
+      gradePhase: 2
+      dataVersion: feature/Fapp
+      actionType: 100
+      category: 1
+      per-page: 20
+      orderBy: app_hits_count desc
+      app_resource: 1
+      page: 1
+  # 请求参数
+  request_params:
+    - <<: *resourceall_req_param
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        category: 2
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        category: 8
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        category: 4
+        gradePhase: 3
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        gradePhase: 3
+        category: 5
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        gradePhase: 3
+        category: 6
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        subjectId: 2
+        category: 9
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        subjectId: 2
+        gradePhase: 3
+        category: 9
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        subjectId: 2
+        gradePhase: 3
+        category: 10
+    - <<: *resourceall_req_param
+      params:
+        <<: *resourceall_req_params
+        subjectId: 2
+        gradePhase: 3
+        category: 27
+
+
+  #  响应结果的处理
+  response: ~
+  #    要保存的文件路径(含文件名称),当值为online时表示使用setattr和getattr来获取相关的数据。
+
+  depends_on: ~
+  #  断言
+  assert:
+    #    一个case里的多重断言
+    - &appshiyan_assert
+      - pytest.assume(200 == response.status_code)
+      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
+      - pytest.assume(3 <= len(jsonpath(resp_json, "$.data['*']")))
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+    - *appshiyan_assert
+
+  jschema_validate:
+    - &jschema_resourceall_wl
+      validate: true
+      filelocation: local
+      filepath: appresourceall_jschema_wl.json
+      first: false
+      update: false
+    - <<: *jschema_resourceall_wl
+      first: false
+    - <<: *jschema_resourceall_wl
+      first: false
+    - <<: *jschema_resourceall_wl
+      first: false
+    - <<: *jschema_resourceall_wl
+      first: false
+    - <<: *jschema_resourceall_wl
+      first: false
+    - &jschema_resourceall_hx
+      validate: true
+      filelocation: local
+      filepath: appresourceall_jschema_hx.json
+      first: false
+      update: false
+    - <<: *jschema_resourceall_hx
+      first: false
+    - <<: *jschema_resourceall_hx
+      first: false
+    - <<: *jschema_resourceall_hx
+      first: false
+
+
