@@ -128,9 +128,9 @@ resourceAll:
   assert:
     #    一个case里的多重断言
     - &appshiyan_assert
-      - pytest.assume(200 == response.status_code)
-      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
-      - pytest.assume(3 <= len(jsonpath(resp_json, "$.data['*']")))
+      - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(3 <= len(jsonpath(req_json, "$.data['*']")))
     - *appshiyan_assert
     - *appshiyan_assert
     - *appshiyan_assert

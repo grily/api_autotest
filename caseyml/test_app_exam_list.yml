@@ -67,8 +67,8 @@ appLogin:
   depends_on: ~
   #  断言
   assert:
-    - - pytest.assume(200 == response.status_code)
-      - pytest.assume('liruige' in jsonpath(resp_json, "$.nickname"))
+    - - pytest.assume(200 == req.status_code)
+      - pytest.assume('liruige' in jsonpath(req_json, "$.nickname"))
   jschema_validate:
     - validate: true
       filelocation: local
@@ -138,9 +138,9 @@ userExamList:
   assert:
     #    一个case里的多重断言
     - &userexamlist_assert
-      - pytest.assume(200 == response.status_code)
-      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
-      - pytest.assume(1 <= len(jsonpath(resp_json, "$.data['*']")))
+      - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
+      - pytest.assume(1 <= len(jsonpath(req_json, "$.data['*']")))
     - *userexamlist_assert
 
   jschema_validate:
@@ -205,8 +205,8 @@ comprehensiveStatistics:
   assert:
     #    一个case里的多重断言
     - &comprehensive_assert
-      - pytest.assume(200 == response.status_code)
-      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
+      - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
     - *comprehensive_assert
 
   jschema_validate:
@@ -270,8 +270,8 @@ singleStatistic:
   assert:
     #    一个case里的多重断言
     - &singleStatistic_assert
-      - pytest.assume(200 == response.status_code)
-      - pytest.assume("OK" in jsonpath(resp_json, "$.message"))
+      - pytest.assume(200 == req.status_code)
+      - pytest.assume("OK" in jsonpath(req_json, "$.message"))
     - *singleStatistic_assert
 
   jschema_validate:

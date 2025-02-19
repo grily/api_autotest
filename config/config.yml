@@ -53,6 +53,6 @@ http_conf:
   v6console_prodhost: console-v6.nobook.com
 
 #  当前的host环境标识，值为test,rel(release),prod(product)
-  cur_host_flag: rel
+  cur_host_flag: prod
 #  接口请求中的User-Agent的配置
   useragent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36

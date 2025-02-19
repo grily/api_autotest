@@ -5,17 +5,19 @@
 @Author: test
 @File：run.py.py
 """
-import time
-import pytest
 import subprocess
+
+import pytest
+
 
 if __name__ == "__main__":
     print(f"\n********************* 开始执行任务 *********************")
 
-    file = "test_exam_list.py"
-    # file = "test_appShiyan.py"
+    # file = "test_app_exam_list.py"
+    # file = "test_app_shiyan.py"
+    file = "test_comments.py"
     pytest.main([f"case/{file}", "--alluredir","report/tmp"])
-    # pytest.main([f"case/{file}" ])
+    # pytest.main([f"case", "--alluredir","report/tmp"])
 
     # 使用subprocess.run生成Allure报告
     report_generate_command = "allure generate report/tmp -o report/report -c"
